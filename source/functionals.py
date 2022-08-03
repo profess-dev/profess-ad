@@ -765,7 +765,7 @@ class WangTeterStyleFunctional(KineticFunctional):
         self.f = f
         zero = torch.zeros((1,), dtype=torch.double, device=self.device, requires_grad=True)
         assert self.f(zero).item() == 1.0, 'Requires f(0) = 1'
-        self.fprime0 = torch.autograd.grad(self.f(zero), zero)[0]
+        self.fprime0 = torch.autograd.grad(self.f(zero), zero)[0].item()
         self.initialize()
 
     def forward(self, box_vecs, den):
@@ -1146,7 +1146,7 @@ def KGAP(box_vecs, den, E_gap, f=lambda x: 1 + x):
     """
     zero = torch.zeros((1,), dtype=torch.double, device=den.device, requires_grad=True)
     assert f(zero).item() == 1.0, 'Requires f(0) = 1'
-    fprime0 = torch.autograd.grad(f(zero), zero)[0]
+    fprime0 = torch.autograd.grad(f(zero), zero)[0].item()
 
     b = 5
     fraction = E_gap * E_gap / (b + E_gap * E_gap)
