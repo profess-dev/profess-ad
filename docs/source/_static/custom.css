@@ -1,0 +1,11 @@
+/* ----- tighten the autosummary tables ----- */
+
+table.longtable.table.autosummary td {
+    padding-bottom : 0;
+    padding-top : 0;
+}
+
+
+table.longtable.table.autosummary p {
+    margin-bottom : 0;
+}
