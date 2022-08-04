@@ -69,7 +69,7 @@ class System():
         self.__process_ions(ions, coord_type, units)  # initialize ion information
         self.__update_ionic_potential()  # initialize external/ionic potential
         self.initialize_density()  # initialize system with uniform density
-        self.__update_energy()  # compute energy for initialized system
+        self.__ene = self.__compute_energy()  # compute energy for initialized system
 
     @classmethod
     def ecut2shape(self, energy_cutoff, box_vecs):
@@ -154,7 +154,7 @@ class System():
             raise ValueError('Parameter \'coord_type\' can only be \'cartesian\' or \'fractional\'')
         if not initialization:
             self.__update_ionic_potential()
-            self.__update_energy()
+            self.__ene = self.__compute_energy()
 
     def set_lattice(self, box_vecs, units='a', initialization=False):
         """
@@ -178,7 +178,7 @@ class System():
         if not initialization:
             self.__update_ionic_potential()
             self.__den *= old_vol / self.__vol()
-            self.__update_energy()
+            self.__ene = self.__compute_energy()
 
     def __potential_from_ions(self, cart_ion_coords):
         kx, ky, kz, k2 = wavevecs(self.__box_vecs, self.__shape)
@@ -195,7 +195,14 @@ class System():
 
     def __update_ionic_potential(self):
         cart_ion_coords = torch.matmul(self.__frac_ion_coords, self.__box_vecs)
-        self.__v_ext = self.__potential_from_ions(cart_ion_coords)
+        need_vext = False
+        for functional in self.__terms:
+            if functional.__qualname__ == 'IonElectron':
+                need_vext = True
+        if need_vext:
+            self.__v_ext = self.__potential_from_ions(cart_ion_coords)
+        else:
+            self.__v_ext = torch.zeros(self.__shape, dtype=torch.double, device=self.__device)
 
     def set_potential(self, pot):
         """
@@ -206,7 +213,7 @@ class System():
         """
         assert pot.shape == self.__shape, 'Shape of new potential must match the system\'s.'
         self.__v_ext = pot.clone().double().to(self.__device)
-        self.__update_energy()
+        self.__ene = self.__compute_energy()
 
     def initialize_density(self):
         """
@@ -234,17 +241,8 @@ class System():
         """
         self.__N_elec = N
 
-    def __update_energy(self, detach=False):
-        if detach:
-            self.__ene = self.__compute_energy().detach()
-        else:
-            self.__ene = self.__compute_energy()
-
-    def __vol(self, detach=False):
-        if detach:
-            return torch.abs(torch.linalg.det(self.__box_vecs.detach()))
-        else:
-            return torch.abs(torch.linalg.det(self.__box_vecs))
+    def __vol(self):
+        return torch.abs(torch.linalg.det(self.__box_vecs))
 
     def detach(self):
         """
@@ -752,19 +750,24 @@ class System():
         else:
             Rc = self.__Rc; Rd = torch.sqrt(h_max * Rc / 3)   # PROFESS 4.0 uses Rc = 250 bohr
 
-        return ion_interaction_sum(self.__box_vecs, cart_ion_coords, charges, Rc, Rd)
+        E_ion = ion_interaction_sum(self.__box_vecs, cart_ion_coords, charges, Rc, Rd)
+        self.__Eion_cache = E_ion.item()
+        return E_ion
 
     ##################################
     # Density Optimization Functions #
     ##################################
-    def __compute_energy(self, for_den_opt=False):
+    def __compute_energy(self, for_den_opt=False, use_ion_cache=False):
         E = torch.zeros((1,), dtype=torch.double, device=self.__device)
         for functional in self.__terms:
             if functional.__qualname__ == 'IonElectron':
                 E += functional(self.__box_vecs, self.__den, self.__v_ext)
             elif functional.__qualname__ == 'IonIon':
                 if not for_den_opt:
-                    E += self.__ion_ion_interaction(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
+                    if use_ion_cache:
+                        E += self.__Eion_cache
+                    else:
+                        E += self.__ion_ion_interaction(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
             else:
                 E += functional(self.__box_vecs, self.__den)
         return E
@@ -903,7 +906,7 @@ class System():
                 if n_verbose:
                     print('Density optimization failed to converge in {} steps \n'.format(int(iter)))
         self.detach()
-        self.__update_energy()
+        self.__ene = self.__compute_energy(use_ion_cache=True)
 
     ##############################################
     # First-order Derivative Terms and Functions #
@@ -923,7 +926,7 @@ class System():
     def __compute_stress(self):
         self.__box_vecs.requires_grad = True
         # incorporate lattice vector dependence in density
-        self.__den = self.__den * self.__vol(detach=True) / self.__vol()
+        self.__den = self.__den * self.__vol().detach() / self.__vol()
         self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
         # calculate stress by auto-differentiating energy wrt lattice vectors
         E = self.__compute_energy()
