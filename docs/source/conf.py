@@ -76,7 +76,7 @@ html_theme_options = {
             # Label for this link
             "name": "GitHub",
             # URL where the link will redirect
-            "url": "https://github.com/cw-tan/torch-ofess",  # required
+            "url": "https://github.com/profess-dev/profess-ad",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
             "icon": "fab fa-github-square",
             # The type of image to be used (see below for details)
