@@ -4,7 +4,7 @@ import unittest
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../source'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
 from system import System
 from functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
 from ion_utils import cardinal_b_spline_values, exponential_spline_b, structure_factor_spline, structure_factor
