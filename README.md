@@ -15,3 +15,13 @@ Requirements
 Install
 -------
 To use PROFESS-AD, you can fork or clone this repository. We will make PROFESS-AD installable via pip in the near future.
+
+```
+git clone https://github.com/profess-dev/profess-ad.git
+```
+
+Testing can be performed as follows.
+```
+cd profess-ad/tests
+python3 -m unittest
+```
