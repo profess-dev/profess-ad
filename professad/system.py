@@ -935,7 +935,7 @@ class System():
         stress = torch.matmul(dEdcell, self.__box_vecs) / self.__vol()
         return 0.5 * (stress + stress.T)  # symmetrize
 
-    def optimize_geometry(self, ftol=1e-4, stol=1e-4, g_conv_cond_count=3, g_method='LBFGSlinesearch',
+    def optimize_geometry(self, ftol=0.02, stol=0.002, g_conv_cond_count=3, g_method='LBFGSlinesearch',
                                 g_step_size=0.1, g_maxiter=1000, g_verbose=False, **den_opt_kwargs):
         """
         Performs a geometry optimization to minimize the energy by varying the ionic positions and/or lattice vectors,
@@ -1064,7 +1064,7 @@ class System():
 
         return success_iter is not None
 
-    def optimize_parameterized_geometry(self, params, parameterized_geometry, ftol=1e-4, stol=1e-4,
+    def optimize_parameterized_geometry(self, params, parameterized_geometry, ftol=0.02, stol=0.002,
                                         g_conv_cond_count=3, g_method='LBFGSlinesearch', g_step_size=0.1,
                                         g_maxiter=1000, g_verbose=False, param_string=None, **den_opt_kwargs):
         """
