@@ -14,14 +14,20 @@ Requirements
 
 Install
 -------
-To use PROFESS-AD, you can fork or clone this repository. We will make PROFESS-AD installable via pip in the near future.
+To use PROFESS-AD, one can fork or clone this repository.
 
 ```
 git clone https://github.com/profess-dev/profess-ad.git
 ```
 
-Testing can be performed as follows.
+It is recommended for users to create a conda environment to install all the required Python packages. To check that all the dependencies have
+been installed correctly, one can perform tests as follows.
 ```
 cd profess-ad/tests
 python3 -m unittest
+```
+
+To conveniently use PROFESS-AD modules, one can then add the path to the `profess-ad/professad` directory to one's `PYTHONPATH` in one's `~/.bashrc`.
+```
+export PYTHONPATH=$PYTHONPATH:"/USERS_PATH/profess-ad/professad"
 ```
