@@ -1196,7 +1196,7 @@ class HuangCarter(KineticFunctional):
         self.lamb = torch.nn.Parameter(torch.tensor([lamb], dtype=torch.double, device=self.device))
         self.beta = torch.nn.Parameter(torch.tensor([beta], dtype=torch.double, device=self.device))
         self.kappa = kappa
-        self.debug = False
+        self.mode = 'geometric'
         self.initialize()
         self.generate_kernel()
 
@@ -1260,7 +1260,7 @@ class HuangCarter(KineticFunctional):
         # Computes K(r) = ∫d³r' ω(|r-r'|,ξ(r)) g(r')
         q = torch.zeros(k2.shape, dtype=torch.double, device=k2.device)
         q[k2 != 0] = torch.sqrt(k2[k2 != 0])
-        K = field_dependent_convolution(q, w_tilde, g, xis, kappa=self.kappa, mode='geometric')
+        K = field_dependent_convolution(q, w_tilde, g, xis, kappa=self.kappa, mode=self.mode)
 
         C_HC = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * 8 * (3 * np.pi * np.pi)
         T_NL = C_HC * torch.mean(den.pow(8 / 3 - self.beta) * K / xis.pow(3)) * torch.abs(torch.linalg.det(box_vecs))
@@ -1294,6 +1294,7 @@ class RevisedHuangCarter(KineticFunctional):
         self.b = torch.nn.Parameter(torch.tensor([b], dtype=torch.double, device=self.device))
         self.beta = torch.nn.Parameter(torch.tensor([beta], dtype=torch.double, device=self.device))
         self.kappa = kappa
+        self.mode = 'geometric'
         self.initialize()
         self.generate_kernel()
 
@@ -1354,7 +1355,7 @@ class RevisedHuangCarter(KineticFunctional):
         # Computes K(r) = ∫d³r' ω(|r-r'|,ξ(r)) g(r')
         q = torch.zeros(k2.shape, dtype=torch.double, device=k2.device)
         q[k2 != 0] = torch.sqrt(k2[k2 != 0])
-        K = field_dependent_convolution(q, w_tilde, g, xis, kappa=self.kappa)
+        K = field_dependent_convolution(q, w_tilde, g, xis, kappa=self.kappa, mode=self.mode)
 
         C_HC = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * 8 * (3 * np.pi * np.pi)
         T_NL = C_HC * torch.mean(den.pow(8 / 3 - self.beta) * K / xis.pow(3)) * torch.abs(torch.linalg.det(box_vecs))
