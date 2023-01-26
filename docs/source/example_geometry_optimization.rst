@@ -14,6 +14,12 @@ optimizations, including ones where
 
 ::
 
+  import torch
+
+  from system import System
+  from functionals import IonIon, IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+
+
   # create system and compute ground state energy
   box_len = 3.48
   box_vecs = box_len * torch.eye(3, dtype=torch.double)
@@ -176,10 +182,16 @@ Parameterized Geometry Optimization
 The following code is an example of how a parameterized geometry optimization can be set up for hexagonal close-packed
 magnesium (hcp-Mg). ::
 
+  import numpy as np
+  import torch
+
+  from system import System
+  from functionals import IonIon, IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+
   # use GPU if available else use CPU
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-  params = torch.tensor([23.1 / System.A_per_b**3, 1.6], dtype=torch.double, device=device).requires_grad_()
+  params = torch.tensor([24 / System.A_per_b**3, 1.5], dtype=torch.double, device=device).requires_grad_()
   print('Initial Guess: Volume per atom = {:.5f} Å³, c/a = {:.5f}'
         .format(params[0].item() * System.A_per_b**3, params[1].item()))
 
@@ -187,11 +199,11 @@ magnesium (hcp-Mg). ::
   # define the lattice vectors and fractional ionic coordinates as a function of the parameters
   def parameterized_geometry(params):
       vol_per_atom, c_over_a = params
-      a = ((2 * vol_per_atom) / (np.sqrt(3) / 2 * c_over_a)).pow(1 / 3)
+      a = ((2 * torch.abs(vol_per_atom)) / (np.sqrt(3) / 2 * c_over_a)).pow(1 / 3)
       box_vecs = torch.tensor([[1.0, 0.0, 0.0],
                                [-0.5, np.sqrt(3) / 2, 0.0],
                                [0.0, 0.0, 0.0]], dtype=torch.double, device=device)
-      box_vecs[2, 2] = c_over_a
+      box_vecs[2, 2] = torch.abs(c_over_a)
       box_vecs = a * box_vecs
       frac_ion_coords = torch.tensor([[1 / 3, 2 / 3, 3 / 4],
                                       [2 / 3, 1 / 3, 1 / 4]], dtype=torch.double, device=device)
@@ -200,12 +212,16 @@ magnesium (hcp-Mg). ::
 
   box_vecs, frac_ion_coords = parameterized_geometry(params)
 
-  # construct the system object
   WTexp = WangTeterStyleFunctional((5 / 6, 5 / 6, lambda x: torch.exp(x)))
+  # required for GPU usage with functionals that inherit from the KineticFunctional class
+  WTexp.set_device(device)
   terms = [IonIon, IonElectron, Hartree, WTexp.forward, PerdewBurkeErnzerhof]
+
+  # construct the system object
   ions = [['Mg', 'mg.gga.recpot', frac_ion_coords.detach()]]
-  shape = System.ecut2shape(800, box_vecs.detach())
-  system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
+  # lattice vectors must be in angstroms for ecut2shape
+  shape = System.ecut2shape(2000, box_vecs.detach() * System.A_per_b)
+  system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional', device=device)
 
 
   # define a print statement to track how the parameters evolve over the optimization
@@ -214,69 +230,25 @@ magnesium (hcp-Mg). ::
 
 
   system.optimize_parameterized_geometry(params, parameterized_geometry, g_method='LBFGSlinesearch',
-                                         g_verbose=True, param_string=param_string)
+                                         g_verbose=True, param_string=param_string, ftol=1e-3, stol=1e-3)
   print('Optimized Results: Volume per atom = {:.5f} Å³, c/a = {:.5f}\n'
         .format(params[0].item() * System.A_per_b**3, params[1].item()))
 
 
+
 This code results in the following output. ::
 
-  Initial Guess: Volume per atom = 23.10000 Å³, c/a = 1.60000
+  Initial Guess: Volume per atom = 24.00000 Å³, c/a = 1.50000
    Iter     E [eV per atom]      dE [eV per atom]     Max Force [eV/Å]    Max Stress [eV/Å³] Params
-     0         -24.215632               0               3.14938e-07           0.00455333     23.10000 1.60000
-     1         -24.216288           -0.0006553          3.11592e-07           0.0026492      23.10001 1.61501
-     2         -24.216454          -0.000166486         3.10321e-07            0.001651      23.09981 1.62286
-     3         -24.216480          -2.64849e-05         3.09987e-07           0.00107558     23.09970 1.62705
-     4         -24.216511          -3.02422e-05         3.08306e-07          0.000907561     23.09965 1.62925
-     5         -24.216528          -1.75464e-05         3.09927e-07           0.00073587     23.09963 1.63044
-     6         -24.216530          -1.79321e-06         3.08961e-07          0.000645257     23.09962 1.63107
-     7         -24.216540          -9.54464e-06         3.08683e-07          0.000703699     23.09962 1.63141
-     8         -24.216506          3.36313e-05          3.08363e-07          0.000531714     23.09963 1.63160
-     9         -24.216518          -1.18203e-05         3.09618e-07          0.000657886     23.09963 1.63171
-    10         -24.216498          2.02333e-05          3.07507e-07          0.000641997     23.09964 1.63175
-    11         -24.216524          -2.65564e-05         3.06897e-07          0.000556547     23.09964 1.63178
-    12         -24.216526          -1.96835e-06         3.10584e-07          0.000601161     23.09967 1.63183
-    13         -24.216507          1.86892e-05          3.06876e-07          0.000569489     23.09967 1.63183
-    14         -24.216529          -2.11181e-05          3.0977e-07          0.000551128     23.10547 1.63174
-    15         -24.216529          -1.66995e-07         3.09547e-07           0.00025188     23.12573 1.63179
-    16         -24.216529          -1.40901e-10         3.08773e-07          0.000251834     23.12573 1.63179
-    17         -24.216529          -6.11706e-11         3.09713e-07          0.000251817     23.12573 1.63179
-    18         -24.216529          -5.68257e-11         3.08912e-07          0.000251798     23.12573 1.63179
-    19         -24.216529          -4.25544e-11         3.09636e-07          0.000251785     23.12573 1.63179
-    20         -24.216529          -3.87992e-11         3.09008e-07          0.000251773     23.12573 1.63179
-    21         -24.216529          -3.2589e-11          3.09547e-07          0.000251764     23.12573 1.63179
-    22         -24.216529          -3.04112e-11         3.09078e-07          0.000251755     23.12573 1.63179
-    23         -24.216529          -2.68123e-11         3.09485e-07          0.000251748     23.12573 1.63179
-    24         -24.216529          -2.54339e-11         3.09128e-07          0.000251742     23.12573 1.63179
-    25         -24.216529          -2.28688e-11         3.09444e-07          0.000251737     23.12573 1.63179
-    26         -24.216529          -2.19096e-11         3.09162e-07          0.000251732     23.12573 1.63179
-    27         -24.216529          -1.98241e-11         3.09416e-07          0.000251728     23.12573 1.63179
-    28         -24.216529          -1.91598e-11         3.09187e-07          0.000251725     23.12573 1.63179
-    29         -24.216529          -1.73088e-11         3.09396e-07          0.000251722     23.12573 1.63179
-    30         -24.216529          -1.68825e-11         3.09205e-07          0.000251719     23.12573 1.63179
-    31         -24.216529          -1.51488e-11         3.09378e-07          0.000251716     23.12573 1.63179
-    32         -24.216529          -1.49782e-11         3.09221e-07          0.000251714     23.12573 1.63179
-    33         -24.216529          -1.32374e-11         3.09363e-07          0.000251712     23.12573 1.63179
-    34         -24.216529          -1.33724e-11         3.09242e-07           0.00025171     23.12573 1.63179
-    35         -24.216529          -1.15499e-11         3.09349e-07          0.000251708     23.12573 1.63179
-    36         -24.216529          -1.20544e-11         3.09269e-07          0.000251706     23.12573 1.63179
-    37         -24.216529          -1.00187e-11          3.0933e-07          0.000251705     23.12573 1.63179
-    38         -24.216529          -1.10383e-11         3.09295e-07          0.000251704     23.12573 1.63179
-    39         -24.216529          -8.59757e-12         3.09312e-07          0.000251703     23.12573 1.63179
-    40         -24.216529          -1.03419e-11         3.09312e-07          0.000251702     23.12573 1.63179
-    41         -24.216529          -7.24754e-12         3.09306e-07          0.000251701     23.12573 1.63179
-    42         -24.216529          -1.0111e-11          3.09315e-07          0.000251701     23.12573 1.63179
-    43         -24.216529          -5.94014e-12         3.09307e-07          0.000251701     23.12573 1.63179
-    44         -24.216529          -1.09281e-11         3.09316e-07           0.0002517      23.12573 1.63179
-    45         -24.216529          -4.78551e-12         3.09309e-07           0.0002517      23.12573 1.63179
-    46         -24.216529          -1.65237e-11         3.09322e-07          0.000251701     23.12573 1.63179
-    47         -24.216529          -4.07496e-12         3.09314e-07          0.000251702     23.12573 1.63179
-    48         -24.216529          -5.02496e-11         3.09365e-07          0.000251716     23.12573 1.63179
-    49         -24.216535          -5.9855e-06          3.10968e-07          0.000178316     23.14822 1.63179
-    50         -24.216547          -1.21639e-05         3.10822e-07          7.56594e-05     23.15329 1.63184
-    51         -24.216547          -5.54934e-11         3.09387e-07           7.5681e-05     23.15329 1.63184
-    52         -24.216547          -4.52616e-11         3.10619e-07          7.57003e-05     23.15329 1.63184
-  Geometry optimization successfully converged in 52 step(s)
+     0         -24.198576               0               3.87304e-06           0.0138319      24.00000 1.50000
+     1         -24.208906           -0.0103299          4.73783e-06            0.01135       23.99641 1.55999
+     2         -24.214733          -0.00582784          4.90708e-06           0.00547138     23.48824 1.59311
+     3         -24.216084          -0.00135011          5.02009e-06           0.00247967     23.28204 1.61115
+     4         -24.216418          -0.000333999         5.09427e-06           0.00116472     23.21050 1.62080
+     5         -24.216488          -7.04247e-05         5.12923e-06          0.000593536     23.16811 1.62585
+     6         -24.216517          -2.87005e-05         5.15291e-06          0.000389594     23.15198 1.62861
+     7         -24.216529          -1.2568e-05          5.17015e-06          0.000188783     23.15116 1.63011
+  Geometry optimization successfully converged in 7 step(s)
 
-  Optimized Results: Volume per atom = 23.15329 Å³, c/a = 1.63184
+  Optimized Results: Volume per atom = 23.15116 Å³, c/a = 1.63011
 
