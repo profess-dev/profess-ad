@@ -1187,9 +1187,10 @@ class HuangCarter(KineticFunctional):
           init_args (tuple) : :math:`(\\lambda,~\\beta,~\\kappa)` where each parameter is a float.
                               :math:`\\lambda,~\\beta` are key parameters of the HC functional,
                               while :math:`\\kappa` is a parameter for the spline-based field dependent
-                              convolution. Note that a geometric progression based spline is used so
-                              :math:`\\kappa > 1`, with :math:`\\kappa = 1.2` recommended for calculations
-                              with the Huang-Carter functional.
+                              convolution. Recommended values for the parameters are
+                              :math:`(\\lambda,~\\beta) = (0.01177,~0.7143)`. Note that a geometric progression
+                              based spline is used so :math:`\\kappa > 1`.  It is recommended to start with
+                              :math:`\\kappa = 1.2` and reduce :math:`\\kappa` until the energy is converged.
         """
         super().__init__()
         lamb, beta, kappa = init_args
@@ -1284,9 +1285,10 @@ class RevisedHuangCarter(KineticFunctional):
           init_args (tuple) : :math:`(a,~b,~\\beta,~\\kappa)` where each parameter is a float.
                               :math:`a,~b,~\\beta` are key parameters of the revHC functional,
                               while :math:`\\kappa` is a parameter for the spline-based field dependent
-                              convolution. Note that an arithmetic progression based spline is used.
-                              Convergence tests starting with values such as :math:`\\kappa = 0.01` is
-                              recommended for calculations with the revised Huang-Carter functional.
+                              convolution. Recommended values for the parameters are
+                              :math:`(a,~b,~\\beta) = (0.45,~0.10,~2/3)`. Note that a geometric progression
+                              based spline is used so :math:`\\kappa > 1`. It is recommended to start with
+                              :math:`\\kappa = 1.15` and reduce :math:`\\kappa` until the energy is converged.
         """
         super().__init__()
         a, b, beta, kappa = init_args
