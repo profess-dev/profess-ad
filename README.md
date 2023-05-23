@@ -31,3 +31,9 @@ To conveniently use PROFESS-AD modules, one can then add the path to the `profes
 ```
 export PYTHONPATH=$PYTHONPATH:"/USERS_PATH/profess-ad/professad"
 ```
+
+Cite
+----
+C.W. Tan, C.J. Pickard, and W.C. Witt. *Automatic Differentiation for Orbital-Free Density Functional Theory*.
+[J. Chem. Phys. 158, 124801 (2023)](https://pubs.aip.org/aip/jcp/article/158/12/124801/2881839/Automatic-differentiation-for-orbital-free-density)
+
