@@ -9,6 +9,7 @@ Install
 It is recommended for users to create a virtual environemnt to install all the required Python packages. For example, a conda environment,
 ```
 conda create -n professad python
+conda activate professad
 ```
 
 To use PROFESS-AD, one can fork or clone this repository and pip install it. The necessary requirements will be installed, including `torch` and `xitorch`.
