@@ -1,0 +1,36 @@
+[build-system]
+requires = ['scikit-build-core', 'nanobind']
+build-backend = 'scikit_build_core.build'
+
+[project]
+name = 'professad'
+version = '1.0.1'
+
+author = [
+  {name = 'Chuin Wei Tan', email = 'chuinwei_tan@g.harvard.edu'}
+]
+
+maintainers = [
+  {name = 'Chuin Wei Tan', email = 'chuinwei_tan@g.harvard.edu'}
+]
+
+description = 'PROFESS-AD is a PyTorch-based auto-differentiable orbital-free density functional theory package.'
+readme = 'README.md'
+license = {file = "LICENSE"}
+dependencies = [
+    'torch',
+    'xitorch',
+    'numpy',
+    'ase',
+    'wandb',
+]
+
+[project.optional-dependencies]
+dev = [
+    'flake8',
+    'sphinx',
+    'pydata-sphinx-theme',
+    'matplotlib',
+]
+
+
