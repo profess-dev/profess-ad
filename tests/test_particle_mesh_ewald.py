@@ -2,13 +2,11 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from system import System
-from functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
-from ion_utils import cardinal_b_spline_values, exponential_spline_b, structure_factor_spline, structure_factor
-from scipy.signal import bspline
+from professad.system import System
+from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.ion_utils import cardinal_b_spline_values, exponential_spline_b, \
+    structure_factor_spline, structure_factor
+from scipy.interpolate import BSpline
 
 
 class TestPME(unittest.TestCase):
@@ -25,7 +23,11 @@ class TestPME(unittest.TestCase):
                 for j in range(n):
                     spl[i + j * m] = array[j, i]
             x = np.linspace(0, n, m * n, endpoint=False)
-            self.assertTrue(np.allclose(spl, bspline(x - (p + 1) / 2, p)))
+
+            knots = np.arange(-(p + 1) / 2, (p + 3) / 2)
+            out = BSpline.basis_element(knots)(x - (p + 1) / 2)
+            out[(x - (p + 1) / 2 < knots[0]) | (x - (p + 1) / 2 > knots[-1])] = 0.0
+            self.assertTrue(np.allclose(spl, out))
 
     def test2_exponential_spline_b(self):
         order = 20

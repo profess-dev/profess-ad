@@ -2,15 +2,12 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from system import System
-from functionals import *
+from professad.system import System
+from professad.functionals import *
 
 from tools_for_tests import *
-from functional_tools import get_functional_derivative
-from crystal_tools import get_cell
+from professad.functional_tools import get_functional_derivative
+from professad.crystal_tools import get_cell
 
 
 class TestFunctionalDerivatives(unittest.TestCase):

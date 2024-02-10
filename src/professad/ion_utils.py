@@ -85,13 +85,13 @@ def interpolate_recpot(path, ks_interp):
 # -----------------------------------------------------------------------------------------------------------------------
 
 def lattice_sum(box_vecs, shape, cart_ion_coords, f_tilde, order=None):
-    """
+    r"""
     Performs convolution of lattice with function :math:`f` using FFTs and the convolution theorem.
     Effectively, :math:`F(\mathbf{r})` is computed by taking the inverse FFT of
 
-    .. math:: \\tilde{F}(\mathbf{q}) = \\frac{1}{\\Omega} S(\mathbf{q}) \\tilde{f}(\mathbf{q}),
+    .. math:: \tilde{F}(\mathbf{q}) = \frac{1}{\Omega} S(\mathbf{q}) \tilde{f}(\mathbf{q}),
 
-    where :math:`\\tilde{f}` is the Fourier transform of :math:`f` and :math:`S(\mathbf{q})`
+    where :math:`\tilde{f}` is the Fourier transform of :math:`f` and :math:`S(\mathbf{q})`
     is the structure factor given by
 
     .. math:: S(\mathbf{q}) = \sum_{i=1}^N e^{-i\mathbf{q}\cdot\mathbf{r}}.
@@ -118,7 +118,7 @@ def lattice_sum(box_vecs, shape, cart_ion_coords, f_tilde, order=None):
 
 
 def structure_factor(box_vecs, shape, cart_ion_coords):
-    """
+    r"""
     Computes, using the direct :math:`\mathcal{O}(N^2)` method, the structure factor given by
 
     .. math:: S(\mathbf{q}) = \sum_{i=1}^N e^{-i\mathbf{q}\cdot\mathbf{r}}.
@@ -140,7 +140,7 @@ def structure_factor(box_vecs, shape, cart_ion_coords):
 
 
 def cardinal_b_spline_values(x, order):
-    """
+    r"""
     This is a helper function for Particle-Mesh Ewald scheme. For :math:`x \in [0,1)` and
     order :math:`n \geq 2`, this function returns
 
@@ -148,7 +148,7 @@ def cardinal_b_spline_values(x, order):
 
     The basic formula is
 
-    .. math::  M_n[i] = \\frac{x+i}{n-1} M_{n-1}[i] + \\frac{n-x-i}{n-1} M_{n-1}[i-1].
+    .. math::  M_n[i] = \frac{x+i}{n-1} M_{n-1}[i] + \frac{n-x-i}{n-1} M_{n-1}[i-1].
 
     Note that while a much simpler implementation, ::
 
@@ -218,7 +218,7 @@ def exponential_spline_b(m, N, order):
 
 
 def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
-    """
+    r"""
     Computes an approximate structure factor using the Particle-Mesh Ewald scheme based on cardinal B-splines,
     which is an :math:`\mathcal{O}(N\log N)` scaling method. For comprehensive details, see the following
     references.
@@ -293,11 +293,11 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
 
 
 def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd):
-    """
+    r"""
     Computes the ion-ion interaction energy using a real-space pairwise electrostatic summation
     in a uniform neutralizing background. Key parameters are :math:`R_c`, the cut-off radius, and
-    :math:`R_d`, a damping parameter. It was recommended that :math:`R_d = 2 h_\\text{max}` and
-    :math:`R_c = 3 R_d^2 / h_\\text{max}`, where :math:`h_\\text{max}` is the maximum interplanar
+    :math:`R_d`, a damping parameter. It was recommended that :math:`R_d = 2 h_\text{max}` and
+    :math:`R_c = 3 R_d^2 / h_\text{max}`, where :math:`h_\text{max}` is the maximum interplanar
     distance.
 
     More details can be found in `Phys. Rev. Materials 2, 013806 <https://doi.org/10.1103/PhysRevMaterials.2.013806>`_.

@@ -2,14 +2,11 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from system import System
-from functionals import *
+from professad.system import System
+from professad.functionals import *
 
 from tools_for_tests import *
-from functional_tools import get_stress, get_pressure
+from professad.functional_tools import get_stress, get_pressure
 
 
 class TestStress(unittest.TestCase):

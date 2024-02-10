@@ -2,10 +2,7 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from functional_tools import field_dependent_convolution, wavevecs
+from professad.functional_tools import field_dependent_convolution, wavevecs
 
 
 class TestSpline(unittest.TestCase):

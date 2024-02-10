@@ -1,11 +1,8 @@
 import numpy as np
 import torch
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from functional_tools import wavevecs, grad_i, grad_dot_grad, reduced_gradient, laplacian, reduced_laplacian
-from functionals import G_inv_lindhard, Hartree, ThomasFermi, non_local_KEF, \
+from professad.functional_tools import wavevecs, grad_i, grad_dot_grad, reduced_gradient, laplacian, reduced_laplacian
+from professad.functionals import G_inv_lindhard, Hartree, ThomasFermi, non_local_KEF, \
                         lda_exchange, perdew_zunger_correlation, perdew_wang_correlation, chachiyo_correlation
 
 

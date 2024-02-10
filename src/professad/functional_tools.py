@@ -7,11 +7,11 @@ import torch
 
 
 def get_functional_derivative(box_vecs, den, functional, requires_grad=False):
-    """ Computes functional derivative
+    r""" Computes functional derivative
 
     This is a utility function that computes the functional derivative
 
-    .. math:: \\frac{\delta F}{\delta n(\mathbf{r})}
+    .. math:: \frac{\delta F}{\delta n(\mathbf{r})}
 
     of a given density functional :math:`F[n]` via autograd. The functional
     derivative computed can be used for further derivatives if ``requires_grad = True``.
@@ -32,13 +32,13 @@ def get_functional_derivative(box_vecs, den, functional, requires_grad=False):
 
 
 def get_inv_G(box_vecs, den, kinetic_functional, requires_grad=False):
-    """ Computes linear response function
+    r""" Computes linear response function
 
-    This is a utility function that computes the linear response function :math:`G^{-1}(\\eta)` where
+    This is a utility function that computes the linear response function :math:`G^{-1}(\eta)` where
 
-    .. math:: G^{-1}(\\eta) = \\frac{\pi^2}{k_F} \\left( \\hat{\\mathcal{F}}  \\left. \\left\{
-                                  \\frac{\delta^2 T_\\text{S}}{\delta n(\mathbf{r}) \delta n(\mathbf{r}')}
-                                  \\right\} \\right|_{n_0,n_0} \\right)^{-1}
+    .. math:: G^{-1}(\eta) = \frac{\pi^2}{k_F} \left( \hat{\mathcal{F}}  \left. \left\{
+                                  \frac{\delta^2 T_\text{S}}{\delta n(\mathbf{r}) \delta n(\mathbf{r}')}
+                                  \right\} \right|_{n_0,n_0} \right)^{-1}
 
     of a given density functional :math:`F[n]` via autograd. The response function computed can be
     used for further derivatives if ``requires_grad = True``. This utility function can
@@ -71,16 +71,16 @@ def get_inv_G(box_vecs, den, kinetic_functional, requires_grad=False):
 
 
 def get_stress(box_vecs, den, functional, requires_grad=False):
-    """ Computes stress
+    r""" Computes stress
 
     This is a utility function that computes the functional contribution to stress
 
-    .. math:: \\sigma_{ij} = \\frac{1}{\Omega} \\left.\\frac{\partial F[n]}{\partial \epsilon_{ij}}
-              \\right|_{\\epsilon_{ij} = 0}
-              = \\frac{1}{\Omega} \\sum_k \\frac{\partial F[n]}{\partial h_{ik}} h_{jk}
+    .. math:: \sigma_{ij} = \frac{1}{\Omega} \left.\frac{\partial F[n]}{\partial \epsilon_{ij}}
+              \right|_{\epsilon_{ij} = 0}
+              = \frac{1}{\Omega} \sum_k \frac{\partial F[n]}{\partial h_{ik}} h_{jk}
 
     of a given density functional :math:`F[n]` via autograd. :math:`h_{ij}` are elements
-    of a matrix whose columns are lattice vectors and the cell volume is :math:`\\Omega`.
+    of a matrix whose columns are lattice vectors and the cell volume is :math:`\Omega`.
     The stress computed can be used for further derivatives if ``requires_grad = True``.
 
     Args:
@@ -102,13 +102,13 @@ def get_stress(box_vecs, den, functional, requires_grad=False):
 
 
 def get_pressure(box_vecs, den, functional, requires_grad=False):
-    """ Computes pressure
+    r""" Computes pressure
 
     This is a utility function that computes the functional contribution to pressure
 
-    .. math:: P_F = - \\frac{dF[n]}{d\Omega}
+    .. math:: P_F = - \frac{dF[n]}{d\Omega}
 
-    of a given density functional :math:`F[n]` via autograd, where :math:`\\Omega`
+    of a given density functional :math:`F[n]` via autograd, where :math:`\Omega`
     is the volume of the cell. The pressure computed can be used for further derivatives
     if ``requires_grad = True``.
 
@@ -164,12 +164,12 @@ def wavevecs(box_vecs, shape):
 
 # -------------------------------------------- FFT-based Derivatives ---------------------------------------------
 def grad_i(ki, f):
-    """ Computes gradient component
+    r""" Computes gradient component
 
     This is a utility function that computes the gradient component or
     partial spatial derivative
 
-    .. math:: \\nabla_i f =  \\frac{\partial f}{\partial r_i}
+    .. math:: \nabla_i f =  \frac{\partial f}{\partial r_i}
 
     where :math:`f` is a given function and :math:`r_i \in \{x,y,z\}`.
 
@@ -184,14 +184,14 @@ def grad_i(ki, f):
 
 
 def grad_dot_grad(kx, ky, kz, f):
-    """ Computes squared gradient
+    r""" Computes squared gradient
 
     This is a utility function that computes the squared gradient or
     the dot product of a gradient with itself
 
-    .. math:: |\\nabla f|^2 =  \\left(\\frac{\partial f}{\partial x}\\right)^2
-                             + \\left(\\frac{\partial f}{\partial y}\\right)^2
-                             + \\left(\\frac{\partial f}{\partial z}\\right)^2
+    .. math:: |\nabla f|^2 =  \left(\frac{\partial f}{\partial x}\right)^2
+                             + \left(\frac{\partial f}{\partial y}\right)^2
+                             + \left(\frac{\partial f}{\partial z}\right)^2
 
     where :math:`f` is a given function.
 
@@ -207,13 +207,13 @@ def grad_dot_grad(kx, ky, kz, f):
 
 
 def laplacian(k2, f):
-    """ Computes Laplacian
+    r""" Computes Laplacian
 
     This is a utility function that computes the Laplacian
 
-    .. math:: \\nabla^2 f =  \\frac{\partial^2 f}{\partial^2 x}
-                           + \\frac{\partial^2 f}{\partial^2 y}
-                           + \\frac{\partial^2 f}{\partial^2 z}
+    .. math:: \nabla^2 f =  \frac{\partial^2 f}{\partial^2 x}
+                           + \frac{\partial^2 f}{\partial^2 y}
+                           + \frac{\partial^2 f}{\partial^2 z}
 
     where :math:`f` is a given function.
 
@@ -228,11 +228,11 @@ def laplacian(k2, f):
 
 
 def reduced_gradient(kx, ky, kz, den):
-    """ Computes reduced gradient
+    r""" Computes reduced gradient
 
     This is a utility function that computes the reduced gradient
 
-    .. math:: s = \\frac{|\\nabla n|}{2(3\pi)^{1/3} n^{4/3}}
+    .. math:: s = \frac{|\nabla n|}{2(3\pi)^{1/3} n^{4/3}}
 
     where :math:`n` is the electron density.
 
@@ -250,11 +250,11 @@ def reduced_gradient(kx, ky, kz, den):
 
 
 def reduced_gradient_squared(kx, ky, kz, den):
-    """ Computes squared reduced gradient
+    r""" Computes squared reduced gradient
 
     This is a utility function that computes the reduced gradient
 
-    .. math:: s^2 = \\frac{|\\nabla n|^2}{4(3\pi)^{2/3} n^{8/3}}
+    .. math:: s^2 = \frac{|\nabla n|^2}{4(3\pi)^{2/3} n^{8/3}}
 
     where :math:`n` is the electron density.
 
@@ -269,11 +269,11 @@ def reduced_gradient_squared(kx, ky, kz, den):
 
 
 def reduced_laplacian(k2, den):
-    """ Computes reduced Laplacian
+    r""" Computes reduced Laplacian
 
     This is a utility function that computes the reduced Laplacian
 
-    .. math:: q = \\frac{\\nabla^2 n}{4(3\pi)^{2/3} n^{5/3}}
+    .. math:: q = \frac{\nabla^2 n}{4(3\pi)^{2/3} n^{5/3}}
 
     where :math:`n` is the electron density.
 
@@ -290,10 +290,10 @@ def reduced_laplacian(k2, den):
 # ------------------------------------------------ Interpolation Tools ------------------------------------------------
 
 def interpolate(x, y, xs):
-    """ Performs interpolation
+    r""" Performs interpolation
 
     This is a utility function that performs a Pytorch based cubic hermite
-    spline interpolation method, hence allowing for autograd and GPU support.
+    spline interpolation method.
     The implementation is based on this
     `gist <https://gist.github.com/chausies/c453d561310317e7eda598e229aea537>`_
     , and extends it to ``xs`` with any dimensions :math:`N \geq 1`.
@@ -335,28 +335,28 @@ def interpolate(x, y, xs):
 
 
 def interpolate_kernel(xi_sparse, f, xis):
-    """ Performs kernel interpolation
+    r""" Performs kernel interpolation
 
-    Consider a function :math:`f(x,y,z,\\xi)` where the last argument :math:`\\xi(x,y,z)` is
+    Consider a function :math:`f(x,y,z,\xi)` where the last argument :math:`\xi(x,y,z)` is
     also a scalar field. Let us have
 
-    1. a list of discrete :math:`\\xi` values, e.g. :math:`\\xi_i \in \{\\xi_1, \\xi_2, \\xi_3, \ldots\}`,
+    1. a list of discrete :math:`\xi` values, e.g. :math:`\xi_i \in \{\xi_1, \xi_2, \xi_3, \ldots\}`,
        represented by the argument ``xi_sparse``
-    2. a set of :math:`f(x,y,z,\\xi_i)` evaluated for specifc :math:`\\xi_i` values,
-       where :math:`\\xi(x,y,z) = \\xi_i` is constant over all space, represented by the argument ``f``
-    3. the function :math:`\\xi(x,y,z)` that could vary in space, represented by the argument ``xis``
+    2. a set of :math:`f(x,y,z,\xi_i)` evaluated for specifc :math:`\xi_i` values,
+       where :math:`\xi(x,y,z) = \xi_i` is constant over all space, represented by the argument ``f``
+    3. the function :math:`\xi(x,y,z)` that could vary in space, represented by the argument ``xis``
 
-    This function performs a cubic hermite interpolation to compute :math:`f(x,y,z,\\xi)` for
-    :math:`\\xi(x,y,z)` using the set of :math:`f(x,y,z,\\xi_i)` values.
+    This function performs a cubic hermite interpolation to compute :math:`f(x,y,z,\xi)` for
+    :math:`\xi(x,y,z)` using the set of :math:`f(x,y,z,\xi_i)` values.
 
     Args:
-      xi_sparse (torch.Tensor) : Tensor of :math:`\\xi` values with shape :math:`(n_\\xi)`
-      f (torch.Tensor)         : Tensor of :math:`f(x,y,z,\\xi_i)` values with shape :math:`(n_1,n_2,n_3,n_\\xi)`
-      xis (torch.Tensor)       : Tensor of the spatially varying :math:`\\xi(x,y,z)` with shape
+      xi_sparse (torch.Tensor) : Tensor of :math:`\xi` values with shape :math:`(n_\xi)`
+      f (torch.Tensor)         : Tensor of :math:`f(x,y,z,\xi_i)` values with shape :math:`(n_1,n_2,n_3,n_\xi)`
+      xis (torch.Tensor)       : Tensor of the spatially varying :math:`\xi(x,y,z)` with shape
                                  :math:`(n_1,n_2,n_3)`
 
     Returns:
-      torch.Tensor: :math:`f(x,y,z,\\xi)` with shape :math:`(n_1,n_2,n_3)`
+      torch.Tensor: :math:`f(x,y,z,\xi)` with shape :math:`(n_1,n_2,n_3)`
     """
     xiss = xi_sparse.unsqueeze(0).unsqueeze(1).unsqueeze(2).expand(f.shape)
     m = (f[:, :, :, 1:] - f[:, :, :, :-1]) / (xiss[:, :, :, 1:] - xiss[:, :, :, :-1])
@@ -379,25 +379,25 @@ def interpolate_kernel(xi_sparse, f, xis):
 
 
 def field_dependent_convolution(k, f_tilde, g, xis, kappa, mode='arithmetic'):
-    """ Computes a field-dependent convolution
+    r""" Computes a field-dependent convolution
 
     Computes a "field-dependent convolution", which is an integral quantity
 
-    .. math:: K(\mathbf{r}) = \int d^3\mathbf{r}' f(|\mathbf{r}-\mathbf{r}'|, \\xi(\mathbf{r}))~g(\mathbf{r}')
+    .. math:: K(\mathbf{r}) = \int d^3\mathbf{r}' f(|\mathbf{r}-\mathbf{r}'|, \xi(\mathbf{r}))~g(\mathbf{r}')
 
     Args:
 
       k (torch.Tensor)    : Wavevectors :math:`k=|\mathbf{k}|` with shape :math:`(m_1,m_2,m_3)`
-      f_tilde (function)  : A function :math:`\\tilde{f}(k,\\xi_i)` which has to be able to broadcast
-                            inputs :math:`k` with shape :math:`(m_1,m_2,m_3)` and :math:`\\xi` with
-                            shape :math:`(n_\\xi)` to an output with shape :math:`(m_1,m_2,m_3,n_\\xi)`.
+      f_tilde (function)  : A function :math:`\tilde{f}(k,\xi_i)` which has to be able to broadcast
+                            inputs :math:`k` with shape :math:`(m_1,m_2,m_3)` and :math:`\xi` with
+                            shape :math:`(n_\xi)` to an output with shape :math:`(m_1,m_2,m_3,n_\xi)`.
                             Represents the fourier transform of
-                            :math:`f(|\mathbf{r}-\mathbf{r}'|, \\xi = \\xi_i)` where
-                            :math:`\\xi(\mathbf{r}) = \\xi_i` is constant over all space.
+                            :math:`f(|\mathbf{r}-\mathbf{r}'|, \xi = \xi_i)` where
+                            :math:`\xi(\mathbf{r}) = \xi_i` is constant over all space.
       g (torch.Tensor)    : :math:`g(\mathbf{r}')` with shape :math:`(n_1,n_2,n_3)`
-      xis (torch.Tensor)  : :math:`\\xi(x,y,z)` with shape :math:`(n_1,n_2,n_3)`
-      kappa (int)         : Interval between the sparse :math:`\\xi_i`'s.
-      mode (str)          : Whether the intervals of the sparse :math:`\\xi_i`'s correspond to an
+      xis (torch.Tensor)  : :math:`\xi(x,y,z)` with shape :math:`(n_1,n_2,n_3)`
+      kappa (int)         : Interval between the sparse :math:`\xi_i`'s.
+      mode (str)          : Whether the intervals of the sparse :math:`\xi_i`'s correspond to an
                             ``arithmetic`` (default) or ``geometric`` progression.
 
     Returns:

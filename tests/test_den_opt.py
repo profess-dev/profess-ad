@@ -2,12 +2,10 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from system import System
-from functionals import IonIon, IonElectron, Hartree, Weizsaecker, LuoKarasievTrickey, WangTeter, PerdewBurkeErnzerhof
-from crystal_tools import get_cell
+from professad.system import System
+from professad.functionals import IonIon, IonElectron, Hartree, Weizsaecker, \
+    LuoKarasievTrickey, WangTeter, PerdewBurkeErnzerhof
+from professad.crystal_tools import get_cell
 
 
 class TestDenOpt(unittest.TestCase):

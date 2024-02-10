@@ -2,11 +2,8 @@ import numpy as np
 import torch
 import unittest
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../professad'))
-from functionals import G_inv_lindhard, WangTeter, G_inv_gap, KGAP, YukawaGGA
-from functional_tools import get_inv_G
+from professad.functionals import G_inv_lindhard, WangTeter, G_inv_gap, KGAP, YukawaGGA
+from professad.functional_tools import get_inv_G
 
 
 class TestLinearResponse(unittest.TestCase):
