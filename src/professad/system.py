@@ -2,9 +2,9 @@ import numpy as np
 import torch
 from xitorch.optimize import minimize
 
-from ion_utils import get_ion_charge, interpolate_recpot, lattice_sum, ion_interaction_sum
-from functional_tools import wavevecs
-from elastic_tools import fit_eos
+from professad.ion_utils import get_ion_charge, interpolate_recpot, lattice_sum, ion_interaction_sum
+from professad.functional_tools import wavevecs
+from professad.elastic_tools import fit_eos
 
 from _optimizers.lbfgs.lbfgsnew import LBFGSNew
 from _optimizers.tpgd.two_point_gradient_descent import TPGD
@@ -34,7 +34,7 @@ class System():
 
     def __init__(self, box_vecs, shape, ions, terms, units='b', coord_type='cartesian', Rc=None,
                  pme_order=None, device=torch.device('cpu')):
-        """
+        r"""
         Args:
           box_vecs (torch.Tensor) : Lattice vectors :math:`\mathbf{a},~\mathbf{b},~\mathbf{c}`
                                     with input format
@@ -53,8 +53,8 @@ class System():
 
           units (string) : Units of ``a`` for angstrom or ``b`` for bohr.
           Rc (None or float)  : Cutoff radius for ion-ion interaction summation (in bohr). Default behaviour
-                                (``Rc=None``) uses the heuristic :math:`R_c = 12 h_\\text{max}` where
-                                :math:`h_\\text{max}` is the largest interplanar spacing for the cell.
+                                (``Rc=None``) uses the heuristic :math:`R_c = 12 h_\text{max}` where
+                                :math:`h_\text{max}` is the largest interplanar spacing for the cell.
           coord_type (string) : Whether ``cartesian`` or ``fractional`` coordinates were used to
                                 represent the ionic coordinates in "ions"
           pme_order (None or even int) : The spline order of the particle-mesh Ewald scheme for a
@@ -359,7 +359,7 @@ class System():
             raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
 
     def density(self, requires_grad=False):
-        """
+        r"""
         Returns the electron density of the system.
 
         Args:
@@ -367,7 +367,7 @@ class System():
                                 (used for training kinetic functionals for example)
 
         Returns:
-          torch.Tensor: Electron density in :math:`\\text{bohr}^{-3}`
+          torch.Tensor: Electron density in :math:`\text{bohr}^{-3}`
         """
         if requires_grad:
             return self.__differentiable_gs_properties('density')
@@ -375,25 +375,25 @@ class System():
             return self.__den.detach()
 
     def check_density_convergence(self, method='dEdchi'):
-        """
+        r"""
         Utility function that computes the measures of density convergence in atomic units.
         I.e. how well the Euler equation,
 
-        .. math:: \\frac{\\delta E}{\\delta n(\mathbf{r})} = \\mu,
+        .. math:: \frac{\delta E}{\delta n(\mathbf{r})} = \mu,
 
-        is obeyed. :math:`\\mu` is the chemical potential.
+        is obeyed. :math:`\mu` is the chemical potential.
 
         If the ``method = 'dEdchi'``, this function computes the quantity
 
-        .. math:: \\text{Max}\\left(\\left|\\frac{\\delta E}{\\delta \\chi(\mathbf{r})}\\right|\\right)
-                  ~~\\text{where} ~~
-                  n(\mathbf{r}) = \\frac{N_e \chi^2(\mathbf{r})}{\int~d^3\mathbf{r}'\\chi^2(\mathbf{r}')}
+        .. math:: \text{Max}\left(\left|\frac{\delta E}{\delta \chi(\mathbf{r})}\right|\right)
+                  ~~\text{where} ~~
+                  n(\mathbf{r}) = \frac{N_e \chi^2(\mathbf{r})}{\int~d^3\mathbf{r}'\chi^2(\mathbf{r}')}
 
         If the ``method = 'euler'``, this function computes the quantity
 
-        .. math:: \\text{Max}\\left(\\left|\\mu - \\frac{\\delta E}{\\delta n(\mathbf{r})}\\right|\\right)
-                  ~~\\text{where} ~~
-                  \\mu = \\frac{1}{N_e} \int~d^3\mathbf{r} \\frac{\\delta E}{\\delta n(\mathbf{r})} n(\mathbf{r})
+        .. math:: \text{Max}\left(\left|\mu - \frac{\delta E}{\delta n(\mathbf{r})}\right|\right)
+                  ~~\text{where} ~~
+                  \mu = \frac{1}{N_e} \int~d^3\mathbf{r} \frac{\delta E}{\delta n(\mathbf{r})} n(\mathbf{r})
 
         :math:`N_e` is the number of electrons.
 
@@ -412,12 +412,12 @@ class System():
             return torch.max(torch.abs(mu - dEdn)).item()
 
     def functional_derivative(self, type='density', requires_grad=False):
-        """
+        r"""
         Returns, in atomic units, the functional derivative of the system,
 
-        .. math:: \\frac{\\delta E}{\\delta n(\mathbf{r})} ~~\\text{or} ~~ \\frac{\\delta E}{\\delta \\chi(\mathbf{r})}
-                  ~~\\text{where} ~~
-                  n(\mathbf{r}) = \\frac{N_e \chi^2(\mathbf{r})}{\int~d^3\mathbf{r}'\\chi^2(\mathbf{r}')}.
+        .. math:: \frac{\delta E}{\delta n(\mathbf{r})} ~~\text{or} ~~ \frac{\delta E}{\delta \chi(\mathbf{r})}
+                  ~~\text{where} ~~
+                  n(\mathbf{r}) = \frac{N_e \chi^2(\mathbf{r})}{\int~d^3\mathbf{r}'\chi^2(\mathbf{r}')}.
 
         Args:
           type (str)          : Functional derivative computed with respect to ``density`` or ``chi``
@@ -480,8 +480,8 @@ class System():
             raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
 
     def volume(self, units='b3'):
-        """
-        Computes the cell volume :math:`\\Omega`.
+        r"""
+        Computes the cell volume :math:`\Omega`.
 
         Args:
           units (string): Units of the pressure returned (``b3`` or ``a3``)
@@ -497,12 +497,12 @@ class System():
             raise ValueError('Parameter \'units\' can only be \'b3\' or \'a3\'')
 
     def pressure(self, units='Ha/b3', requires_grad=False):
-        """
+        r"""
         Computes, via autograd and/or Xitorch, the pressure
 
-        .. math:: P = \\frac{dE[n]}{d\\Omega}
+        .. math:: P = \frac{dE[n]}{d\Omega}
 
-        where the cell volume is :math:`\\Omega`.
+        where the cell volume is :math:`\Omega`.
 
         Args:
           units (string)      : Units of the pressure returned (``Ha/b3``, ``eV/a3`` or ``GPa``)
@@ -540,12 +540,12 @@ class System():
             raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
 
     def bulk_modulus(self, units='Ha/b3', requires_grad=False):
-        """
+        r"""
         Computes, via autograd and Xitorch, the bulk modulus
 
-        .. math:: K = \\Omega \\frac{d^2 E[n]}{d \\Omega^2}
+        .. math:: K = \Omega \frac{d^2 E[n]}{d \Omega^2}
 
-        where the cell volume is :math:`\\Omega`.
+        where the cell volume is :math:`\Omega`.
 
         Args:
           units (string)      : Units of the bulk modulus returned (``Ha/b3``, ``eV/a3`` or ``GPa``)
@@ -621,13 +621,13 @@ class System():
         return params, err
 
     def forces(self, units='Ha/b'):
-        """
+        r"""
         Computes, via autograd, the forces
 
-        .. math:: F_{\\alpha, i} = - \\frac{dE[n]}{dR_{\\alpha, i}}
+        .. math:: F_{\alpha, i} = - \frac{dE[n]}{dR_{\alpha, i}}
 
-        where :math:`\\alpha` is an ion index, :math:`i \in \{x,y,z\}` and
-        :math:`R_{\\alpha, i}` are the Cartesian ionic coordinates.
+        where :math:`\alpha` is an ion index, :math:`i \in \{x,y,z\}` and
+        :math:`R_{\alpha, i}` are the Cartesian ionic coordinates.
 
         Args:
           units (string): Units of the forces returned (``Ha/b`` or ``eV/a``)
@@ -643,13 +643,13 @@ class System():
             raise ValueError('Parameter \'units\' can only be \'Ha/b\' or \'eV/a\'')
 
     def stress(self, units='Ha/b3'):
-        """
+        r"""
         Computes, via autograd, the stress tensor
 
-        .. math:: \\sigma_{ij} = \\frac{1}{\Omega} \\sum_k \\frac{\partial E[n]}{\partial h_{ik}} h_{jk}
+        .. math:: \sigma_{ij} = \frac{1}{\Omega} \sum_k \frac{\partial E[n]}{\partial h_{ik}} h_{jk}
 
         where :math:`h_{ij}` are matrix elements of a matrix whose columns are lattice vectors
-        and the cell volume is :math:`\\Omega`.
+        and the cell volume is :math:`\Omega`.
 
         Args:
           units (string): Units of the stress tensor returned (``Ha/b3``, ``eV/a3`` or ``GPa``)
@@ -668,11 +668,11 @@ class System():
         return self.__compute_stress() * unit_factor
 
     def elastic_constants(self, units='Ha/b3'):
-        """
+        r"""
         Computes, via autograd and Xitorch, the elastic constants (Birch coefficients)
 
-        .. math:: C_{ijk\\ell} = \\frac{\partial \\sigma_{ij}}{\partial \\epsilon_{k\\ell}}
-                  = \\sum_m \\frac{\partial \\sigma_{ij}}{\partial h_{km}} h_{\\ell m}
+        .. math:: C_{ijk\ell} = \frac{\partial \sigma_{ij}}{\partial \epsilon_{k\ell}}
+                  = \sum_m \frac{\partial \sigma_{ij}}{\partial h_{km}} h_{\ell m}
 
         where :math:`h_{ij}` are matrix elements of a matrix whose columns are lattice vectors.
 
@@ -693,13 +693,13 @@ class System():
         return self.__compute_elastic_constants() * unit_factor
 
     def force_constants(self, primitive_ion_indices, units='eV/a2'):
-        """
+        r"""
         Computes, via autograd, the force constants
 
-        .. math:: \\Phi_{\\alpha, i, \\beta, j} = - \\frac{dF_{\\alpha, i} }{dR_{\\beta, j}}
+        .. math:: \Phi_{\alpha, i, \beta, j} = - \frac{dF_{\alpha, i} }{dR_{\beta, j}}
 
-        where :math:`\\alpha, \\beta` are ion indices, :math:`i,j \in \{x,y,z\}` and
-        :math:`R_{\\beta, j}` are the Cartesian ionic coordinates.
+        where :math:`\alpha, \beta` are ion indices, :math:`i,j \in \{x,y,z\}` and
+        :math:`R_{\beta, j}` are the Cartesian ionic coordinates.
 
         Args:
           units (string)              : Units of the force constants returned (``Ha/b2`` or ``eV/a2``)
@@ -720,9 +720,9 @@ class System():
     #  Ion/Electron Interaction Terms  #
     ####################################
     def set_Rc(self, Rc=None):
-        """
+        r"""
         Sets the cutoff radius for the ion-ion interaction energy. Default behaviour (``Rc=None``)
-        uses the heuristic :math:`R_c = 12 h_\\text{max}` where :math:`h_\\text{max}` is the largest
+        uses the heuristic :math:`R_c = 12 h_\text{max}` where :math:`h_\text{max}` is the largest
         interplanar spacing for the cell.
 
         Args:
@@ -775,7 +775,7 @@ class System():
     def optimize_density(self, ntol=1e-7, n_conv_cond_count=3, n_method='LBFGS', n_step_size=0.1,
                                n_maxiter=1000, conv_target='dE', n_verbose=False, from_uniform=False,
                                potentials=None):
-        """
+        r"""
         Performs an orbital-free density optimization procedure to minimize the energy via a direct optimization using
         a Pytorch-based modified LBFGS [`10.1109/eScience.2018.00112 <https://ieeexplore.ieee.org/document/8588731>`_]
         optimizer, or a Two-Point Gradient Descent (TPGD)
@@ -793,8 +793,8 @@ class System():
           n_method (string)      : ``LBFGS`` or ``TPGD``
           n_step_size (float)    : Step size for the optimizers
           n_maxiter (int)        : Maximum number of density optimization iterations
-          conv_target (string)   : ``dE`` (energy difference), ``dEdchi`` (Max :math:`|\\delta E/\\delta \\chi|`),
-                                    or ``euler`` (Max :math:`|\\mu-\\delta E/\\delta n|`)
+          conv_target (string)   : ``dE`` (energy difference), ``dEdchi`` (Max :math:`|\delta E/\delta \chi|`),
+                                    or ``euler`` (Max :math:`|\mu-\delta E/\delta n|`)
           n_verbose (bool)       : Whether the density optimization progress is printed out or not
           from_uniform (bool)    : Whether the density optimization begins from a uniform density or not. When
                                    'False', the behaviour is to compare the energy computed with the current

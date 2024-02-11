@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from functional_tools import wavevecs, interpolate
+from professad.functional_tools import wavevecs, interpolate
 
 # ----------------------------------------------------------------------------
 # This script contains auxiliary functions for computing the ion related
@@ -132,10 +132,7 @@ def structure_factor(box_vecs, shape, cart_ion_coords):
       torch.Tensor: Exact structure factor
     """
     kx, ky, kz, k2 = wavevecs(box_vecs, shape)
-    kr = \
-        kx.unsqueeze(3).expand((-1, -1, -1, cart_ion_coords.shape[0])) * cart_ion_coords[:, 0] + \
-        ky.unsqueeze(3).expand((-1, -1, -1, cart_ion_coords.shape[0])) * cart_ion_coords[:, 1] + \
-        kz.unsqueeze(3).expand((-1, -1, -1, cart_ion_coords.shape[0])) * cart_ion_coords[:, 2]
+    kr = torch.einsum('xyza, ia -> xyzi', torch.stack([kx, ky, kz], dim=-1), cart_ion_coords)
     return torch.sum(torch.exp(-1j * kr), axis=3)
 
 
