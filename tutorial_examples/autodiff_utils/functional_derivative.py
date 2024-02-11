@@ -1,14 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import os
-import sys
-sys.path.insert(0, os.path.abspath('../../professad'))
-
-from system import System
-from functionals import IonIon, IonElectron, Hartree, WangTeter, ThomasFermi, Weizsaecker, PauliGaussian, PerdewBurkeErnzerhof
-from crystal_tools import get_cell
-from functional_tools import get_functional_derivative
+from professad.system import System
+from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, ThomasFermi, \
+    Weizsaecker, PauliGaussian, PerdewBurkeErnzerhof
+from professad.crystal_tools import get_cell
+from professad.functional_tools import get_functional_derivative
 
 # generate an optimized density to be used
 terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]

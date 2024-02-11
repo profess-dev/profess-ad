@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from functional_tools import wavevecs, grad_dot_grad, reduced_gradient, reduced_gradient_squared, \
-                             laplacian, reduced_laplacian, interpolate, field_dependent_convolution
+from professad.functional_tools import wavevecs, grad_dot_grad, reduced_gradient, \
+    reduced_gradient_squared, laplacian, reduced_laplacian, interpolate, field_dependent_convolution
 from xitorch.integrate import solve_ivp
 
 # ----------------------------------------------------------------
@@ -29,11 +29,11 @@ def IonIon():
 
 
 def IonElectron(box_vecs, den, v_ext):
-    """ Ion-electron energy functional
+    r""" Ion-electron energy functional
 
     The ion-electron energy functional is given by
 
-    .. math:: U_\\text{ion-electron}[n] = \int d^3\mathbf{r}~ n(\mathbf{r}) v_\\text{ext}(\mathbf{r}).
+    .. math:: U_\text{ion-electron}[n] = \int d^3\mathbf{r}~ n(\mathbf{r}) v_\text{ext}(\mathbf{r}).
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -47,13 +47,13 @@ def IonElectron(box_vecs, den, v_ext):
 
 
 def Hartree(box_vecs, den):
-    """ Hartree energy functional
+    r""" Hartree energy functional
 
     The Hartree energy functional is the classical mean-field electron-electron interaction
     energy. It is given by
 
-    .. math:: U_\\text{Hartree}[n] = \\frac{1}{2} \int d^3\mathbf{r} d^3\mathbf{r}'~
-              \\frac{n(\mathbf{r})n(\mathbf{r}')}{|\mathbf{r}-\mathbf{r}'|} .
+    .. math:: U_\text{Hartree}[n] = \frac{1}{2} \int d^3\mathbf{r} d^3\mathbf{r}'~
+              \frac{n(\mathbf{r})n(\mathbf{r}')}{|\mathbf{r}-\mathbf{r}'|} .
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -205,13 +205,13 @@ class KineticFunctional(torch.nn.Module):
 
 
 def ThomasFermi(box_vecs, den):
-    """ Thomas-Fermi functional
+    r""" Thomas-Fermi functional
 
     The Thomas-Fermi functional is exact for the free electron gas and
     can be considered the local density approximation (LDA) for
     non-interacting kinetic energy functionals. It is given by
 
-    .. math:: T_\\text{TF}[n] = \int d^3\mathbf{r} ~\\frac{3}{10} (3\pi)^{2/3} n^{5/3}(\mathbf{r})
+    .. math:: T_\text{TF}[n] = \int d^3\mathbf{r} ~\frac{3}{10} (3\pi)^{2/3} n^{5/3}(\mathbf{r})
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -225,12 +225,12 @@ def ThomasFermi(box_vecs, den):
 
 
 def Weizsaecker(box_vecs, den):
-    """ von Weizsaecker functional
+    r""" von Weizsaecker functional
 
     The von Weizsaecker functional is exact for single-orbital systems
     It is given by
 
-    .. math:: T_\\text{vW}[n] = \int d^3\mathbf{r} ~\\frac{1}{8} \\frac{|\\nabla n(\mathbf{r})|^2}{n(\mathbf{r})}
+    .. math:: T_\text{vW}[n] = \int d^3\mathbf{r} ~\frac{1}{8} \frac{|\nabla n(\mathbf{r})|^2}{n(\mathbf{r})}
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -249,12 +249,12 @@ def Weizsaecker(box_vecs, den):
 
 
 def vWGTF1(box_vecs, den):
-    """ vWGTF1 functional
+    r""" vWGTF1 functional
 
     The vWGTF1 functional [`Phys. Rev. B 91, 045124 <https://doi.org/10.1103/PhysRevB.91.045124>`_]
     has a Pauli enhancement factor given by
 
-    .. math:: F_\\theta^\\text{vWGTF1}(d) = 0.9892 \cdot d^{-1.2994}
+    .. math:: F_\theta^\text{vWGTF1}(d) = 0.9892 \cdot d^{-1.2994}
 
     where :math:`d = n/n_0` for average density :math:`n_0`.
 
@@ -275,16 +275,16 @@ def vWGTF1(box_vecs, den):
 
 
 def vWGTF2(box_vecs, den):
-    """ vWGTF2 functional
+    r""" vWGTF2 functional
 
     The vWGTF2 functional [`Phys. Rev. B 91, 045124 <https://doi.org/10.1103/PhysRevB.91.045124>`_]
     has a Pauli enhancement factor given by
 
-    .. math:: F_\\theta^\\text{vWGTF2}(d) = \\sqrt{\\frac{1}{\\text{ELF}} - 1}
+    .. math:: F_\theta^\text{vWGTF2}(d) = \sqrt{\frac{1}{\text{ELF}} - 1}
 
     with the electron localization function (ELF) parameterized as
 
-    .. math:: \\text{ELF} = \\frac{1}{2} \\left(1 + \\tanh(5.7001 \cdot d^{0.2563} - 5.7001) \\right)
+    .. math:: \text{ELF} = \frac{1}{2} \left(1 + \tanh(5.7001 \cdot d^{0.2563} - 5.7001) \right)
 
     where :math:`d = n/n_0` for average density :math:`n_0`.
 
@@ -307,13 +307,13 @@ def vWGTF2(box_vecs, den):
 
 # --------------------------- Luo-Karasiev-Trickey (LKT) functional --------------------------
 def LuoKarasievTrickey(box_vecs, den):
-    """ Luo-Karasiev-Trickey (LKT) functional
+    r""" Luo-Karasiev-Trickey (LKT) functional
 
     The Luo-Karasiev-Trickey (LKT) GGA kinetic functional
     [`Phys. Rev. B 98, 041111(R) <https://link.aps.org/doi/10.1103/PhysRevB.98.041111>`_]
     has a Pauli enhancement factor given by
 
-    .. math:: F_\\theta^\\text{LKT}(s) = \\frac{1}{\\cosh(1.3 s)}
+    .. math:: F_\theta^\text{LKT}(s) = \frac{1}{\cosh(1.3 s)}
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -334,22 +334,22 @@ def LuoKarasievTrickey(box_vecs, den):
 
 
 class PauliGaussian(KineticFunctional):
-    """ Pauli-Gaussian functional
+    r""" Pauli-Gaussian functional
 
     The Pauli-Gaussian class of GGA kinetic energy functionals
     [`J. Phys. Chem. Lett. 2018, 9, 15, 4385–4390 <https://doi.org/10.1021/acs.jpclett.8b01926>`_,
     `J. Chem. Theory Comput. 2019, 15, 5, 3044–3055 <https://doi.org/10.1021/acs.jctc.9b00183>`_]
     have Pauli enhancement factors with the form
 
-    .. math:: F_\\theta^\\text{PG}(s,q) = e^{-\\mu s^2} + \\beta q^2 - \\lambda q s^2 + \\sigma s^4
+    .. math:: F_\theta^\text{PG}(s,q) = e^{-\mu s^2} + \beta q^2 - \lambda q s^2 + \sigma s^4
     """
     def __init__(self, init_args=None):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\mu,~\\beta,~\\lambda,~\\sigma)` where each parameter is a float.
+          init_args (tuple) : :math:`(\mu,~\beta,~\lambda,~\sigma)` where each parameter is a float.
                               These are key parameters of the Pauli-Gaussian functionals.
                               The default parameters are that of the PGSL0.25 functional's,
-                              :math:`(\\mu,~\\beta,~\\lambda,~\\sigma) = (40/27,~0.25,~0,~0)`.
+                              :math:`(\mu,~\beta,~\lambda,~\sigma) = (40/27,~0.25,~0,~0)`.
         """
         super().__init__()
         if init_args is None:
@@ -363,22 +363,22 @@ class PauliGaussian(KineticFunctional):
         self.initialize()
 
     def set_PG1(self):
-        """ Set :math:`(\\mu,~\\beta,~\\lambda,~\\sigma) = (1,~0,~0,~0)` """
+        r""" Set :math:`(\mu,~\beta,~\lambda,~\sigma) = (1,~0,~0,~0)` """
         self.mu[0], self.beta[0] = 1.0, 0.0
         self.lamb[0], self.sigma[0] = 0.0, 0.0
 
     def set_PGS(self):
-        """ Set :math:`(\\mu,~\\beta,~\\lambda,~\\sigma) = (40/27,~0,~0,~0)` """
+        r""" Set :math:`(\mu,~\beta,~\lambda,~\sigma) = (40/27,~0,~0,~0)` """
         self.mu[0], self.beta[0] = 40 / 27, 0.0
         self.lamb[0], self.sigma[0] = 0.0, 0.0
 
     def set_PGSL025(self):
-        """ Set :math:`(\\mu,~\\beta,~\\lambda,~\\sigma) = (40/27,~0.25,~0,~0)` """
+        r""" Set :math:`(\mu,~\beta,~\lambda,~\sigma) = (40/27,~0.25,~0,~0)` """
         self.mu[0], self.beta[0] = 40 / 27, 0.25
         self.lamb[0], self.sigma[0] = 0.0, 0.0
 
     def set_PGSLr(self):
-        """ Set :math:`(\\mu,~\\beta,~\\lambda,~\\sigma) = (40/27,~0.25,~0.4,~0.2)` """
+        r""" Set :math:`(\mu,~\beta,~\lambda,~\sigma) = (40/27,~0.25,~0.4,~0.2)` """
         self.mu[0], self.beta[0] = 40 / 27, 0.25
         self.lamb[0], self.sigma[0] = 0.4, 0.2
 
@@ -404,34 +404,34 @@ class PauliGaussian(KineticFunctional):
 
 
 class YukawaGGA(KineticFunctional):
-    """ Yukawa GGA functional
+    r""" Yukawa GGA functional
 
     The Yukawa GGA class of kinetic energy functionals
     [`Phys. Rev. B 103, 155127 <https://link.aps.org/doi/10.1103/PhysRevB.103.155127>`_,
     `Computation 2022, 10(2), 30 <https://doi.org/10.3390/computation10020030>`_]
-    have Pauli enhancement factors :math:`F_\\theta(y, s^2, q)` that depend on the Yukawa
+    have Pauli enhancement factors :math:`F_\theta(y, s^2, q)` that depend on the Yukawa
     potential term,
 
-    .. math:: y_{\\alpha \\beta}(\mathbf{r}) = \\frac{3\pi\\alpha^2}{4 k_F(\mathbf{r}) n^{\\beta-1}(\mathbf{r})}
-              \int d^3\mathbf{r}' \\frac{n^\\beta(\mathbf{r}')
-              e^{-\\alpha k_F(\mathbf{r}) |\mathbf{r}-\mathbf{r}'|}}{|\mathbf{r}-\mathbf{r}'|}
+    .. math:: y_{\alpha \beta}(\mathbf{r}) = \frac{3\pi\alpha^2}{4 k_F(\mathbf{r}) n^{\beta-1}(\mathbf{r})}
+              \int d^3\mathbf{r}' \frac{n^\beta(\mathbf{r}')
+              e^{-\alpha k_F(\mathbf{r}) |\mathbf{r}-\mathbf{r}'|}}{|\mathbf{r}-\mathbf{r}'|}
 
     where :math:`k_F(\mathbf{r}) = [3\pi^2 n(\mathbf{r})]^{1/3}`, as an ingredient besides
     the reduced gradient and laplacian.
     """
     def __init__(self, init_args=None):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\alpha,~\\beta,~F_\\theta,~\\kappa)` where (\\alpha,~\\beta) are
+          init_args (tuple) : :math:`(\alpha,~\beta,~F_\theta,~\kappa)` where (\alpha,~\beta) are
                               key parameters of the Yukawa GGA functional,
-                              :math:`F_\\theta` is the Pauli enhancement factor that takes as arguments
+                              :math:`F_\theta` is the Pauli enhancement factor that takes as arguments
                               the Yukawa descriptor, reduced gradient and reduced laplacian,
-                              i.e. :math:`F_\\theta(y, s^2, q)`,
-                              and :math:`\\kappa` is a parameter for the spline-based field dependent
+                              i.e. :math:`F_\theta(y, s^2, q)`,
+                              and :math:`\kappa` is a parameter for the spline-based field dependent
                               convolution. Note that a geometric progression based spline is used so
-                              :math:`\\kappa > 1`
+                              :math:`\kappa > 1`
                               The default parameters are that of the Yuk1 functional's,
-                              :math:`(\\mu,~\\beta,~f,~\\kappa) = (1,~1,~y,~1.2)`.
+                              :math:`(\mu,~\beta,~f,~\kappa) = (1,~1,~y,~1.2)`.
         """
         super().__init__()
         if init_args is None:
@@ -478,20 +478,20 @@ class YukawaGGA(KineticFunctional):
         return 1 + (2 / a) * torch.tanh((a / 2) * x)
 
     def set_yuk1(self):
-        """
-        Set :math:`(\\alpha,~\\beta) = (1,~1)` and
+        r"""
+        Set :math:`(\alpha,~\beta) = (1,~1)` and
 
-        .. math:: F_\\theta(y,~s^2,~q) = y
+        .. math:: F_\theta(y,~s^2,~q) = y
 
         """
         self.alpha[0] = 1; self.beta[0] = 1
         self.F_pauli = lambda y, s2, q: y
 
     def set_yuk2(self):
-        """
-        Set :math:`(\\alpha,~\\beta) = (1.36297,~1)` and
+        r"""
+        Set :math:`(\alpha,~\beta) = (1.36297,~1)` and
 
-        .. math:: F_\\theta(y,~s^2,~q) = y~ \\left(1 + \\frac{40}{27} (q-s^2) \\right)
+        .. math:: F_\theta(y,~s^2,~q) = y~ \left(1 + \frac{40}{27} (q-s^2) \right)
 
         .. warning::
             Unstable for density optimizations as it violates Pauli positivity
@@ -500,14 +500,14 @@ class YukawaGGA(KineticFunctional):
         self.F_pauli = lambda y, s2, q: y * (1 + 40 / 27 * (q - s2))
 
     def set_yuk3(self, a=4):
-        """
-        Set :math:`(\\alpha,~\\beta) = (1.36297,~1)` and
+        r"""
+        Set :math:`(\alpha,~\beta) = (1.36297,~1)` and
 
-        .. math:: F_\\theta(y,~s^2,~q) = y~ T_a \\left(-\\frac{40}{27} (q-s^2) \\right)
+        .. math:: F_\theta(y,~s^2,~q) = y~ T_a \left(-\frac{40}{27} (q-s^2) \right)
 
         where
 
-        .. math:: T_a(x) = \\frac{4}{a} \\frac{e^{ax}}{e^{ax} + 1} + \\frac{a-2}{a}.
+        .. math:: T_a(x) = \frac{4}{a} \frac{e^{ax}}{e^{ax} + 1} + \frac{a-2}{a}.
         """
         self.alpha[0] = 1.3629; self.beta[0] = 1
 
@@ -517,15 +517,15 @@ class YukawaGGA(KineticFunctional):
         self.F_pauli = func
 
     def set_yuk4(self, a=3.3):
-        """
-        Set :math:`(\\alpha,~\\beta) = (1.36297,~1)` and
+        r"""
+        Set :math:`(\alpha,~\beta) = (1.36297,~1)` and
 
-        .. math:: F_\\theta(y,~s^2,~q) = y~ T_a \\left(-\\frac{40}{27} s^2 \\right)
-                  T_2\\left(-\\frac{40}{27} q \\right)
+        .. math:: F_\theta(y,~s^2,~q) = y~ T_a \left(-\frac{40}{27} s^2 \right)
+                  T_2\left(-\frac{40}{27} q \right)
 
         where
 
-        .. math:: T_a(x) = \\frac{4}{a} \\frac{e^{ax}}{e^{ax} + 1} + \\frac{a-2}{a}.
+        .. math:: T_a(x) = \frac{4}{a} \frac{e^{ax}}{e^{ax} + 1} + \frac{a-2}{a}.
         """
         self.alpha[0] = 1.3629; self.beta[0] = 1
 
@@ -536,18 +536,18 @@ class YukawaGGA(KineticFunctional):
         self.F_pauli = func
 
     def set_yuk2beta(self, alpha, beta):
-        """
-        Set :math:`(\\alpha,~\\beta)` according to user input and
+        r"""
+        Set :math:`(\alpha,~\beta)` according to user input and
 
-        .. math:: F_\\theta(y,~s^2,~q) = 1 - G_0 + y(G_0 + G)
+        .. math:: F_\theta(y,~s^2,~q) = 1 - G_0 + y(G_0 + G)
 
         where
 
-        .. math:: G_0 = \\frac{\\alpha^2 (\\alpha^2 - 60)}{108 \\beta (9\\beta - 10)}
+        .. math:: G_0 = \frac{\alpha^2 (\alpha^2 - 60)}{108 \beta (9\beta - 10)}
 
         and
 
-        .. math:: G = \\left(\\frac{40}{27\\beta} - \\frac{4}{\\alpha^2} (\\beta-1) G_0\\right) (q - \\beta s^2).
+        .. math:: G = \left(\frac{40}{27\beta} - \frac{4}{\alpha^2} (\beta-1) G_0\right) (q - \beta s^2).
 
         .. warning::
             Unstable for density optimizations as it violates Pauli positivity
@@ -563,20 +563,20 @@ class YukawaGGA(KineticFunctional):
         self.F_pauli = func
 
     def set_yuk3beta(self, alpha, beta, a=2):
-        """
-        Set :math:`(\\alpha,~\\beta)` according to user input and
+        r"""
+        Set :math:`(\alpha,~\beta)` according to user input and
 
-        .. math:: F_\\theta(y,~s^2,~q) = T_a\\left( - G_0 + y(G_0 + G) \\right)
+        .. math:: F_\theta(y,~s^2,~q) = T_a\left( - G_0 + y(G_0 + G) \right)
 
         where
 
-        .. math:: G_0 = \\frac{\\alpha^2 (\\alpha^2 - 60)}{108 \\beta (9\\beta - 10)},
+        .. math:: G_0 = \frac{\alpha^2 (\alpha^2 - 60)}{108 \beta (9\beta - 10)},
 
-        .. math:: G = \\left(\\frac{40}{27\\beta} - \\frac{4}{\\alpha^2} (\\beta-1) G_0\\right) (q - \\beta s^2)
+        .. math:: G = \left(\frac{40}{27\beta} - \frac{4}{\alpha^2} (\beta-1) G_0\right) (q - \beta s^2)
 
         and
 
-        .. math:: T_a(x) = \\frac{4}{a} \\frac{e^{ax}}{e^{ax} + 1} + \\frac{a-2}{a}.
+        .. math:: T_a(x) = \frac{4}{a} \frac{e^{ax}}{e^{ax} + 1} + \frac{a-2}{a}.
         """
         self.alpha[0] = alpha; self.beta[0] = beta
 
@@ -653,11 +653,11 @@ def non_local_KEF(box_vecs, den, alpha, beta):
 
 
 def WangTeter(box_vecs, den):
-    """ Wang-Teter (WT) functional
+    r""" Wang-Teter (WT) functional
 
     The Wang-Teter (WT)  functional [`Phys. Rev. B 45, 13196 <https://doi.org/10.1103/PhysRevB.45.13196>`_]
     is a Wang-Teter style non-local kinetic functional with a density-independent kernel and
-    parameters :math:`(\\alpha,~\\beta) = (5/6,~5/6)`.
+    parameters :math:`(\alpha,~\beta) = (5/6,~5/6)`.
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -671,12 +671,12 @@ def WangTeter(box_vecs, den):
 
 
 def Perrot(box_vecs, den):
-    """ Perrot functional
+    r""" Perrot functional
 
     The Perrot functional [`J. Phys.: Condens. Matter 6 431
     <https://iopscience.iop.org/article/10.1088/0953-8984/6/2/014>`_]
     is a Wang-Teter style non-local kinetic functional with a density-independent kernel and
-    parameters :math:`(\\alpha,~\\beta) = (1,~1)`.
+    parameters :math:`(\alpha,~\beta) = (1,~1)`.
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -690,11 +690,11 @@ def Perrot(box_vecs, den):
 
 
 def SmargiassiMadden(box_vecs, den):
-    """ Smargiassi-Madden (SM) functional
+    r""" Smargiassi-Madden (SM) functional
 
     The Smargiassi-Madden (SM) functional [`Phys. Rev. B 49, 5220 <https://doi.org/10.1103/PhysRevB.49.5220>`_]
     is a non-local kinetic Wang-Teter style functional with a density-independent kernel and
-    parameters :math:`(\\alpha,~\\beta) = (1/2,~1/2)`.
+    parameters :math:`(\alpha,~\beta) = (1/2,~1/2)`.
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -708,11 +708,11 @@ def SmargiassiMadden(box_vecs, den):
 
 
 def WangGovindCarter98(box_vecs, den):
-    """ Wang-Govind-Carter 98 (WGC98) functional
+    r""" Wang-Govind-Carter 98 (WGC98) functional
 
     The Wang-Govind-Carter 98 (WGC98) functional [`Phys. Rev. B 58, 13465 <https://doi.org/10.1103/PhysRevB.58.13465>`_]
     is a non-local kinetic Wang-Teter style functional with a density-independent kernel and
-    parameters :math:`(\\alpha,~\\beta) = ((5+\\sqrt{5})/6,~(5-\sqrt{5})/6)`.
+    parameters :math:`(\alpha,~\beta) = ((5+\sqrt{5})/6,~(5-\sqrt{5})/6)`.
 
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
@@ -726,34 +726,34 @@ def WangGovindCarter98(box_vecs, den):
 
 
 class WangTeterStyleFunctional(KineticFunctional):
-    """ Wang-Teter style functional
+    r""" Wang-Teter style functional
 
     This class represents a general Wang-Teter style non-local kinetic energy functional with user-chosen
-    :math:`(\\alpha,~\\beta)` parameters. Conventional choices of these parameters include
+    :math:`(\alpha,~\beta)` parameters. Conventional choices of these parameters include
 
-    * :math:`(\\alpha,~\\beta)=(5/6,5/6)` in the Wang-Teter functional
+    * :math:`(\alpha,~\beta)=(5/6,5/6)` in the Wang-Teter functional
       [`Phys. Rev. B 45, 13196 <https://doi.org/10.1103/PhysRevB.45.13196>`_]
 
-    * :math:`(\\alpha,~\\beta)=(1,1)` in the Perrot functional
+    * :math:`(\alpha,~\beta)=(1,1)` in the Perrot functional
       [`J. Phys.: Condens. Matter 6 431 <https://iopscience.iop.org/article/10.1088/0953-8984/6/2/014>`_]
 
-    * :math:`(\\alpha,~\\beta)=(1/2,1/2)` in the Smargiassi-Madden functional
+    * :math:`(\alpha,~\beta)=(1/2,1/2)` in the Smargiassi-Madden functional
       [`Phys. Rev. B 49, 5220 <https://doi.org/10.1103/PhysRevB.49.5220>`_]
 
-    * :math:`(\\alpha,~\\beta) = ((5+\\sqrt{5})/6,~(5-\sqrt{5})/6)` in the Wang-Govind-Carter 98 functional
+    * :math:`(\alpha,~\beta) = ((5+\sqrt{5})/6,~(5-\sqrt{5})/6)` in the Wang-Govind-Carter 98 functional
       [`Phys. Rev. B 58, 13465 <https://doi.org/10.1103/PhysRevB.58.13465>`_]
 
     This class also allows for the use of a Pauli-positivity stabilization function
     [`J. Phys. Chem. A 2021, 125, 7, 1650–1660 <https://doi.org/10.1021/acs.jpca.0c11030>`_].
     """
     def __init__(self, init_args=None):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\alpha,~\\beta,~f)` where :math:`(\\alpha,~\\beta)` are floats and
-                              :math:`f` is a function. :math:`(\\alpha,~\\beta)` are key parameters of the
+          init_args (tuple) : :math:`(\alpha,~\beta,~f)` where :math:`(\alpha,~\beta)` are floats and
+                              :math:`f` is a function. :math:`(\alpha,~\beta)` are key parameters of the
                               Wang-Teter style functionals while :math:`f` is the Pauli-positivity stabilization
                               function, which must obey :math:`f(0) = 1`. The default parameters are
-                              :math:`(\\alpha,~\\beta,~f) = (5/6,~5/6,~f(x) = 1 +x)`.
+                              :math:`(\alpha,~\beta,~f) = (5/6,~5/6,~f(x) = 1 +x)`.
         """
         super().__init__()
         if init_args is None:
@@ -793,13 +793,13 @@ class WangGovindCarter99(KineticFunctional):
     from the density-dependent kernel.
     """
     def __init__(self, init_args=None):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\alpha,~\\beta,~\\gamma,~\\kappa)` where each parameter is a float.
-                              :math:`\\alpha,~\\beta,~\\gamma` are key parameters of the WGC99 functional,
-                              while :math:`\\kappa` is an enhancement factor for the reference uniform
+          init_args (tuple) : :math:`(\alpha,~\beta,~\gamma,~\kappa)` where each parameter is a float.
+                              :math:`\alpha,~\beta,~\gamma` are key parameters of the WGC99 functional,
+                              while :math:`\kappa` is an enhancement factor for the reference uniform
                               density such that :math:`n^* = κ n_0` The default parameters are
-                              :math:`(\\alpha,~\\beta,~\\gamma,~\\kappa) = ((5+\\sqrt{5})/6,~(5-\sqrt{5})/6,~2.7,~1)`
+                              :math:`(\alpha,~\beta,~\gamma,~\kappa) = ((5+\sqrt{5})/6,~(5-\sqrt{5})/6,~2.7,~1)`
         """
         super().__init__()
         if init_args is None:
@@ -996,13 +996,13 @@ class FoleyMadden(KineticFunctional):
     meant to enforce the correct linear response.
     """
     def __init__(self, init_args=None):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\alpha,~\\beta,~f)` where :math:`(\\alpha,~\\beta)` are floats and
-                              :math:`f` is a function. :math:`(\\alpha,~\\beta)` are key parameters of the
+          init_args (tuple) : :math:`(\alpha,~\beta,~f)` where :math:`(\alpha,~\beta)` are floats and
+                              :math:`f` is a function. :math:`(\alpha,~\beta)` are key parameters of the
                               Foley-Madden functional while :math:`f` is the Pauli-positivity stabilization
                               function, which must obey :math:`f(0) = f'(0) = 1`. The default parameters are
-                              :math:`(\\alpha,~\\beta,~f) = (5/6,~1,~f(x) = 1 +x)`.
+                              :math:`(\alpha,~\beta,~f) = (5/6,~1,~f(x) = 1 +x)`.
         """
         super().__init__()
         if init_args is None:
@@ -1182,15 +1182,15 @@ class HuangCarter(KineticFunctional):
     """
 
     def __init__(self, init_args):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(\\lambda,~\\beta,~\\kappa)` where each parameter is a float.
-                              :math:`\\lambda,~\\beta` are key parameters of the HC functional,
-                              while :math:`\\kappa` is a parameter for the spline-based field dependent
+          init_args (tuple) : :math:`(\lambda,~\beta,~\kappa)` where each parameter is a float.
+                              :math:`\lambda,~\beta` are key parameters of the HC functional,
+                              while :math:`\kappa` is a parameter for the spline-based field dependent
                               convolution. Recommended values for the parameters are
-                              :math:`(\\lambda,~\\beta) = (0.01177,~0.7143)`. Note that a geometric progression
-                              based spline is used so :math:`\\kappa > 1`.  It is recommended to start with
-                              :math:`\\kappa = 1.2` and reduce :math:`\\kappa` until the energy is converged.
+                              :math:`(\lambda,~\beta) = (0.01177,~0.7143)`. Note that a geometric progression
+                              based spline is used so :math:`\kappa > 1`.  It is recommended to start with
+                              :math:`\kappa = 1.2` and reduce :math:`\kappa` until the energy is converged.
         """
         super().__init__()
         lamb, beta, kappa = init_args
@@ -1202,14 +1202,14 @@ class HuangCarter(KineticFunctional):
         self.generate_kernel()
 
     def generate_kernel(self, eta_max=50, N_eta=10000):
-        """
-        Generates the Huang-Carter kernel, :math:`\\omega(\\eta)`, by solving an initial value
+        r"""
+        Generates the Huang-Carter kernel, :math:`\omega(\eta)`, by solving an initial value
         problem with Xitorch. The associated ordinary differential eqaution (ODE) is obtained by
         imposing the Lindhard response of a homogeneous electron gas on the Huang-Carter functional.
 
         Args:
-          eta_max (float) : Upper bound of :math:`\\eta` to solve the ODE from
-          N_eta (int)     : Number of data points in :math:`[0, \\eta_\\text{max}]`
+          eta_max (float) : Upper bound of :math:`\eta` to solve the ODE from
+          N_eta (int)     : Number of data points in :math:`[0, \eta_\text{max}]`
         """
         def lindhard(eta):
             if eta == 0:
@@ -1280,15 +1280,15 @@ class RevisedHuangCarter(KineticFunctional):
     """
 
     def __init__(self, init_args):
-        """
+        r"""
         Args:
-          init_args (tuple) : :math:`(a,~b,~\\beta,~\\kappa)` where each parameter is a float.
-                              :math:`a,~b,~\\beta` are key parameters of the revHC functional,
-                              while :math:`\\kappa` is a parameter for the spline-based field dependent
+          init_args (tuple) : :math:`(a,~b,~\beta,~\kappa)` where each parameter is a float.
+                              :math:`a,~b,~\beta` are key parameters of the revHC functional,
+                              while :math:`\kappa` is a parameter for the spline-based field dependent
                               convolution. Recommended values for the parameters are
-                              :math:`(a,~b,~\\beta) = (0.45,~0.10,~2/3)`. Note that a geometric progression
-                              based spline is used so :math:`\\kappa > 1`. It is recommended to start with
-                              :math:`\\kappa = 1.15` and reduce :math:`\\kappa` until the energy is converged.
+                              :math:`(a,~b,~\beta) = (0.45,~0.10,~2/3)`. Note that a geometric progression
+                              based spline is used so :math:`\kappa > 1`. It is recommended to start with
+                              :math:`\kappa = 1.15` and reduce :math:`\kappa` until the energy is converged.
         """
         super().__init__()
         a, b, beta, kappa = init_args
@@ -1301,14 +1301,14 @@ class RevisedHuangCarter(KineticFunctional):
         self.generate_kernel()
 
     def generate_kernel(self, eta_max=50, N_eta=10000):
-        """
-        Generates the Huang-Carter kernel, :math:`\\omega(\\eta)`, by solving an initial value
+        r"""
+        Generates the Huang-Carter kernel, :math:`\omega(\eta)`, by solving an initial value
         problem with Xitorch. The associated ordinary differential eqaution (ODE) is obtained by
         imposing the Lindhard response of a homogeneous electron gas on the Huang-Carter functional.
 
         Args:
-          eta_max (float) : Upper bound of :math:`\\eta` to solve the ODE from
-          N_eta (int)     : Number of data points in :math:`[0, \\eta_\\text{max}]`
+          eta_max (float) : Upper bound of :math:`\eta` to solve the ODE from
+          N_eta (int)     : Number of data points in :math:`[0, \eta_\text{max}]`
         """
         def lindhard(eta):
             if eta == 0:
@@ -1388,14 +1388,14 @@ class MiGenovaPavanello(KineticFunctional):
         self.kernel = None
 
     def generate_kernel(self, eta_max=60, N_eta=2000, N_int=10000):
-        """
+        r"""
         Generates the integral part of the MGP kernel in one-dimension for later interpolation.
         This process involves perform numerical integration.
 
         Args:
-          eta_max (float) : :math:`\\eta_\\text{max}` is the upper bound for which the kernel
-                            :math:`K(\\eta)` is generated up to
-          N_eta (int)     : Number of data points in :math:`[0, \\eta_\\text{max}]`
+          eta_max (float) : :math:`\eta_\text{max}` is the upper bound for which the kernel
+                            :math:`K(\eta)` is generated up to
+          N_eta (int)     : Number of data points in :math:`[0, \eta_\text{max}]`
           N_int (int)     : Number of integration points for numerical integration of the kernel
         """
         ts = torch.linspace(1e-4, 1, N_int, dtype=torch.double, device=self.device)
@@ -1454,7 +1454,7 @@ class MiGenovaPavanello(KineticFunctional):
 # --------------------------------- Xu-Wang-Ma functional-----------------------------------
 
 def XuWangMa(box_vecs, den, kappa=0):
-    """ Xu-Wang-Ma (XWM) functional
+    r""" Xu-Wang-Ma (XWM) functional
 
     The Xu-Wang-Ma (XWM)  functional [`Phys. Rev. B 100, 205132 <https://doi.org/10.1103/PhysRevB.100.205132>`_]
     is a non-local kinetic functional based on line integrals, with a density-dependent kernel.
@@ -1464,7 +1464,7 @@ def XuWangMa(box_vecs, den, kappa=0):
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
       den      (torch.Tensor) : Electron density
-      kappa    (float)        : Adjustable parameter (default :math:`\\kappa=0`)
+      kappa    (float)        : Adjustable parameter (default :math:`\kappa=0`)
 
     Returns:
       torch.Tensor: XWM kinetic energy

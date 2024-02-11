@@ -2,13 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../professad'))
-from system import System
-from functionals import KineticFunctional, Weizsaecker, IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
-from functional_tools import get_functional_derivative, wavevecs, reduced_gradient, reduced_laplacian
-from crystal_tools import get_cell
+from professad.system import System
+from professad.functionals import KineticFunctional, Weizsaecker, IonIon, IonElectron, Hartree, \
+    WangTeter, PerdewBurkeErnzerhof
+from professad.functional_tools import get_functional_derivative, wavevecs, reduced_gradient, reduced_laplacian
+from professad.crystal_tools import get_cell
 
 
 # create semi-local neural network functional

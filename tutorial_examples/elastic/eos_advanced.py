@@ -1,10 +1,6 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath('../../professad'))
-
-from system import System
-from functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
-from crystal_tools import get_cell
+from professad.system import System
+from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.crystal_tools import get_cell
 
 f = 0.05
 N = 11

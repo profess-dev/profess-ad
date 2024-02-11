@@ -1,11 +1,9 @@
 import matplotlib.pyplot as plt
 import torch
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../professad'))
-from functionals import G_inv_lindhard, WangTeter, LuoKarasievTrickey, PauliGaussian, Weizsaecker, ThomasFermi
-from functional_tools import get_inv_G
+from professad.functionals import G_inv_lindhard, WangTeter, LuoKarasievTrickey, \
+    PauliGaussian, Weizsaecker, ThomasFermi
+from professad.functional_tools import get_inv_G
 
 shape = (61, 61, 61)
 box_vecs = 8 * torch.eye(3, dtype=torch.double)

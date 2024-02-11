@@ -14,21 +14,21 @@ GPa_per_Ab3 = GPa_per_atomic / (eV_per_Ha / A_per_b**3)
 
 
 def fit_eos(vol, ene, eos='bm', plot=False):
-    """
+    r"""
     Fits volume-energy data to the Murnaghan or Birch-Murnaghan equation of state. For an
     accurate fit, it is recommended that the energy-volume points are distributed evenly
     about the energy-volume minima.
 
     The Murnaghan equation of state is given by
 
-    .. math:: E(V) = E_0 + \\frac{K_0 V}{K_0'} \\left(\\frac{(V_0/V)^{K_0'}}{K_0'-1} + 1 \\right)
-              - \\frac{K_0V_0}{K_0'-1}
+    .. math:: E(V) = E_0 + \frac{K_0 V}{K_0'} \left(\frac{(V_0/V)^{K_0'}}{K_0'-1} + 1 \right)
+              - \frac{K_0V_0}{K_0'-1}
 
     while the Birch-Murnaghan equation of state is given by
 
-    .. math:: E(V) = E_0 + \\frac{9 V_0 K_0}{16} \\left\{ \\left[\\left(\\frac{V_0}{V}\\right)^{2/3}-1\\right]^3 K_0'
-              + \\left[\\left(\\frac{V_0}{V}\\right)^{2/3}-1\\right]^2
-              \\left[6-4\\left(\\frac{V_0}{V}\\right)^{2/3}\\right] \\right\}
+    .. math:: E(V) = E_0 + \frac{9 V_0 K_0}{16} \left\{ \left[\left(\frac{V_0}{V}\right)^{2/3}-1\right]^3 K_0'
+              + \left[\left(\frac{V_0}{V}\right)^{2/3}-1\right]^2
+              \left[6-4\left(\frac{V_0}{V}\right)^{2/3}\right] \right\}
 
     The parameters are returned in the following order
 
@@ -78,7 +78,7 @@ def fit_eos(vol, ene, eos='bm', plot=False):
 
 
 def voigt_moduli(C):
-    """
+    r"""
     Processes a 6 x 6 elastic constant matrix into the Voigt bulk and shear moduli, given by
 
     .. math:: 9 K_V = (C_{11} + C_{22} + C_{33}) + 2(C_{12} + C_{23} + C_{31})
@@ -99,7 +99,7 @@ def voigt_moduli(C):
 
 
 def reuss_moduli(C):
-    """
+    r"""
     Processes a 6 x 6 elastic constant matrix into the Reuss bulk and shear moduli, given by
 
     .. math:: 1/K_R = (S_{11} + S_{22} + S_{33}) + 2(S_{12} + S_{23} + S_{31})
@@ -144,11 +144,11 @@ def shear_average(C, mean_type='arithmetic'):
 
 
 def poissons_ratio(K, G):
-    """
+    r"""
     Processes the bulk and shear moduli (:math:`K` and :math:`G`) into a
-    Poisson's ratio (:math:`\\nu`) using
+    Poisson's ratio (:math:`\nu`) using
 
-    .. math:: \\nu = \\frac{1}{2} \\left(1 - \\frac{3G}{3K+G} \\right)
+    .. math:: \nu = \frac{1}{2} \left(1 - \frac{3G}{3K+G} \right)
 
     Args:
       K (torch.Tensor or float): Bulk modulus
@@ -161,11 +161,11 @@ def poissons_ratio(K, G):
 
 
 def youngs_modulus(K, G):
-    """
+    r"""
     Processes the bulk and shear moduli (:math:`K` and :math:`G`) into a
     Young's modulus (:math:`E`) using
 
-    .. math:: E = \\left(\\frac{1}{3G} + \\frac{1}{9K} \\right)^{-1}
+    .. math:: E = \left(\frac{1}{3G} + \frac{1}{9K} \right)^{-1}
 
     Args:
       K (torch.Tensor or float): Bulk modulus

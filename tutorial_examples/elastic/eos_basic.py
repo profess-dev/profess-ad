@@ -1,10 +1,6 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath('../../professad'))
-
-from system import System
-from functionals import IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof
-from crystal_tools import get_cell
+from professad.system import System
+from professad.functionals import IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof
+from professad.crystal_tools import get_cell
 
 # define the system at a close estimate to the equilibrium volume
 terms = [IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof]

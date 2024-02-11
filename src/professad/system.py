@@ -6,8 +6,8 @@ from professad.ion_utils import get_ion_charge, interpolate_recpot, lattice_sum,
 from professad.functional_tools import wavevecs
 from professad.elastic_tools import fit_eos
 
-from _optimizers.lbfgs.lbfgsnew import LBFGSNew
-from _optimizers.tpgd.two_point_gradient_descent import TPGD
+from professad._optimizers.lbfgs.lbfgsnew import LBFGSNew
+from professad._optimizers.tpgd.two_point_gradient_descent import TPGD
 
 
 # --------------------------------------------------------------------------------
