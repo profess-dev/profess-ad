@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from professad.functional_tools import wavevecs, interpolate
+from torch_nl import compute_neighborlist
 
 # ----------------------------------------------------------------------------
 # This script contains auxiliary functions for computing the ion related
@@ -308,43 +309,25 @@ def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd):
     Returns:
       torch.Tensor: Ion-ion interaction energy
     """
+    # get neighbor list
+    mapping, batch_mapping, shifts_idx = compute_neighborlist(
+        Rc, coords, box_vecs, torch.ones((3,), device=coords.device).bool(),
+        torch.zeros((coords.shape[0], ), dtype=torch.long, device=coords.device), self_interaction=False
+    )
+    # charge terms
     rho = torch.sum(charges) / torch.abs(torch.linalg.det(box_vecs))
-    # calculate maximum number of cells to translate by
-    h_max = 1 / torch.sqrt(torch.sum(torch.linalg.inv(box_vecs.detach().T).pow(2), 1))
-    shifts = torch.ceil(Rc / h_max)
-    E_ij, Q_i = 0, torch.zeros(coords.shape[0], dtype=torch.double, device=box_vecs.device)
-    na = torch.arange(-shifts[0], shifts[0] + 1, device=box_vecs.device)
-    nb = torch.arange(-shifts[1], shifts[1] + 1, device=box_vecs.device)
-    nc = torch.arange(-shifts[2], shifts[2] + 1, device=box_vecs.device)
-    na, nb, nc = torch.meshgrid(na, nb, nc, indexing='ij')
-    mod_box_vecs = box_vecs.unsqueeze(2).unsqueeze(3).unsqueeze(4).expand((-1, -1) + na.shape)
-    r = na * mod_box_vecs[0] + nb * mod_box_vecs[1] + nc * mod_box_vecs[2]  # lattice translation vector
-    mod_charges = charges.double().unsqueeze(1).unsqueeze(2).unsqueeze(3).expand((-1,) + na.shape)
-
-    # for equivalent positions in each cell (considered separately to impose i≠j easily)
-    zizj = torch.where((na == 0.0) & (nb == 0.0) & (nc == 0.0), 0.0, mod_charges.pow(2))  # i≠j
-
-    r2 = torch.sum(r.pow(2), axis=0)
-    r_ij = torch.empty(r2.shape, dtype=torch.double, device=box_vecs.device)
-    r_ij[r2 == 0] = 1e-30
-    r_ij[r2 != 0] = torch.sqrt(r2[r2 != 0])
-    r_ij = r_ij.unsqueeze(0).expand((zizj.shape[0], -1, -1, -1))
-
-    E_ij += 0.5 * torch.sum(torch.where(r_ij < Rc, zizj, 0.0) * torch.erfc(r_ij / Rd) / (r_ij))
-    Q_i += torch.sum(torch.where(r_ij < Rc, mod_charges, 0.0), axis=(1, 2, 3)) - torch.sum(charges)  # i≠j
-
-    # for different relative positions in each cell
-    mod_coords = coords.unsqueeze(2).unsqueeze(3).unsqueeze(4).expand((-1, -1) + na.shape)
-    for j in range(1, coords.shape[0]):  # iterate through ions in cell a vector 'r' away from origin
-        zizj = (mod_charges * mod_charges.roll(j, dims=0))
-        r_ij = torch.sqrt(torch.sum((mod_coords - (r + mod_coords.roll(j, dims=0))).pow(2), axis=1))
-        E_ij += 0.5 * torch.sum(torch.where(r_ij < Rc, zizj, 0.0) * torch.erfc(r_ij / Rd) / (r_ij))
-        Q_i += torch.sum(torch.where(r_ij < Rc, mod_charges.roll(j, dims=0), 0.0), axis=(1, 2, 3))
-
-    # correction term
-    Ra = torch.sign(Q_i * rho) * torch.abs(0.75 * Q_i / np.pi / rho).pow(1 / 3)  # a.pow(n<1) gives nans for a<0
-    E_correction = torch.sum(np.pi * charges * rho * (Ra.pow(2) - 0.5 * Rd * Rd) * torch.erf(Ra / Rd)
-                             - np.pi * charges * rho * Ra.pow(2)
-                             + np.sqrt(np.pi) * charges * rho * Ra * Rd * torch.exp(- Ra.pow(2) / Rd / Rd)
-                             - charges.pow(2) / np.sqrt(np.pi) / Rd)
-    return E_ij + E_correction
+    Zi = torch.index_select(charges, 0, mapping[0])  # (PQ,)
+    Zj = torch.index_select(charges, 0, mapping[1])  # (PQ,)
+    Qi = torch.scatter_add(charges, 0, mapping[0], Zj)  # (P,)
+    aux = (0.75 / np.pi) * Qi / rho  # (P,)
+    Ra = aux.sign() * aux.abs().pow(1 / 3)  # (P,) | a.pow(n<1) gives nans for a<0
+    # pairwise distances
+    r_ij = (torch.index_select(coords, 0, mapping[1]) + torch.matmul(shifts_idx, box_vecs)
+            - torch.index_select(coords, 0, mapping[0])).norm(p=2, dim=1)  # (PQ,)
+    # energy terms
+    E_local = torch.sum(0.5 * Zi * Zj * torch.erfc(r_ij.div(Rd)).div(r_ij))  # sum over i,j
+    E_corr = torch.sum(- np.pi * charges * rho * Ra.square()
+                       + np.pi * charges * rho * (Ra.square() - 0.5 * Rd * Rd) * torch.erf(Ra.div(Rd))
+                       + np.sqrt(np.pi) * charges * rho * Ra * Rd * torch.exp(- Ra.square().div(Rd * Rd))
+                       - charges.square() / np.sqrt(np.pi) / Rd)  # sum over i
+    return E_local + E_corr
