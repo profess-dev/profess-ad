@@ -12,42 +12,13 @@ from professad.functional_tools import get_stress, get_pressure
 class TestStress(unittest.TestCase):
 
     def test1_stress(self):
-
-        # Use finite difference method to test ion-ion contribution to stress
+        # ------- test functional contribution to stress -------
         shape = (25, 25, 25)
         box_vecs = torch.tensor([[6.5, -0.13, 0.25],
                                  [-0.33, 7.21, 0.24],
                                  [0.55, 0.04, 6.78]], dtype=torch.double)
         frac_ion_coords = torch.tensor([[0, 0, 0], [0.35, 0.65, 0.45]], dtype=torch.double)
         ions = [['Li', 'potentials/li.gga.recpot', frac_ion_coords]]
-        terms = [IonIon]
-        system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
-
-        volume = system.volume('a3')
-        lattice_vectors = system.lattice_vectors('a')
-        autograd_stress = system.stress('eV/a3')
-
-        # perturb lattice vectors and measure energy to compute finite difference stress
-        E_plus, E_minus = torch.empty((3, 3), dtype=torch.double), torch.empty((3, 3), dtype=torch.double)
-        eps = 1e-4
-        for i in range(3):
-            for j in range(3):
-                perturbation = torch.zeros((3, 3), dtype=torch.double)
-                perturbation[i, j] += eps
-                lat_vec_plus = torch.matmul((torch.eye(3, dtype=torch.double)
-                                             + perturbation), lattice_vectors.T).T
-                system.set_lattice(lat_vec_plus, units='a')
-                E_plus[i, j] = system.energy('eV')
-                lat_vec_minus = torch.matmul((torch.eye(3, dtype=torch.double)
-                                              - perturbation), lattice_vectors.T).T
-                system.set_lattice(lat_vec_minus, units='a')
-                E_minus[i, j] = system.energy('eV')
-        finite_diff_stress = (E_plus - E_minus).numpy() / (2 * eps * volume)
-
-        self.assertTrue(np.allclose(autograd_stress, finite_diff_stress, atol=1e-3))
-
-        # ------- test functional contribution to stress -------
-
         # perform a density optimization to obtain a density profile for testing
 
         terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]

@@ -20,9 +20,9 @@ license = {file = "LICENSE"}
 dependencies = [
     'torch',
     'xitorch',
+    'torch-nl',
     'numpy',
     'ase',
-    'wandb',
 ]
 
 [project.optional-dependencies]

@@ -739,8 +739,7 @@ class System():
         """
         charges, counter = torch.empty(self.__N_ions, dtype=torch.int, device=self.__device), 0
         for species in self.__ions:
-            charges[counter:(counter + species[2])] = torch.full((species[2],), species[3],
-                                                                  dtype=torch.int, device=self.__device)
+            charges[counter:(counter + species[2])] = torch.full((species[2],), species[3], device=self.__device)
             counter += species[2]
         interplanar_dist = 1 / torch.sqrt(torch.sum(torch.linalg.inv(self.__box_vecs.detach().T).pow(2), 1))
         h_max = torch.max(interplanar_dist)
@@ -750,7 +749,7 @@ class System():
         else:
             Rc = self.__Rc; Rd = torch.sqrt(h_max * Rc / 3)   # PROFESS 4.0 uses Rc = 250 bohr
 
-        E_ion = ion_interaction_sum(self.__box_vecs, cart_ion_coords, charges, Rc, Rd)
+        E_ion = ion_interaction_sum(self.__box_vecs, cart_ion_coords, charges.double(), Rc, Rd)
         self.__Eion_cache = E_ion.item()
         return E_ion
 
