@@ -9,11 +9,11 @@ from professad.elastic_tools import fit_eos
 from professad._optimizers.lbfgs.lbfgsnew import LBFGSNew
 from professad._optimizers.tpgd.two_point_gradient_descent import TPGD
 
-
 # --------------------------------------------------------------------------------
 # System class for a PROFESS-AD, a Pytorch-based auto-differentiable orbital-free
 # density functional theory code with periodic boundary conditions.
 # --------------------------------------------------------------------------------
+
 
 class System():
     """
@@ -69,7 +69,7 @@ class System():
         self.__process_ions(ions, coord_type, units)  # initialize ion information
         self.__update_ionic_potential()  # initialize external/ionic potential
         self.initialize_density()  # initialize system with uniform density
-        self.__ene = self.__compute_energy()  # compute energy for initialized system
+        self.__ene = self._compute_energy()  # compute energy for initialized system
 
     @classmethod
     def ecut2shape(self, energy_cutoff, box_vecs):
@@ -85,7 +85,7 @@ class System():
         """
         bvs = box_vecs / self.A_per_b; ecut = energy_cutoff / self.eV_per_Ha  # atomic units
         kcut = np.sqrt(2 * ecut)
-        shape = 1 + 2 * torch.ceil(kcut / (2 * np.pi / torch.sqrt(torch.sum(bvs.pow(2), axis=1))))
+        shape = 1 + 2 * torch.ceil(kcut / (2 * np.pi / torch.sqrt(torch.sum(bvs.square(), axis=1))))
         return tuple(shape.int().tolist())
 
     #####################################
@@ -101,8 +101,8 @@ class System():
           device (torch.device): Device
         """
         self.__device = device
-        self.__box_vecs = self.__box_vecs.to(self.__device)
-        self.__den = self.__den.to(self.__device)
+        self._box_vecs = self._box_vecs.to(self.__device)
+        self._den = self._den.to(self.__device)
         self.__v_ext = self.__v_ext.to(self.__device)
         self.__frac_ion_coords = self.__frac_ion_coords.to(self.__device)
 
@@ -142,7 +142,7 @@ class System():
                 unit_factor = 1.0  # Bohr
             else:
                 raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
-            aux_frac_coords = torch.matmul(ion_coords / unit_factor, torch.linalg.inv(self.__box_vecs))
+            aux_frac_coords = torch.matmul(ion_coords / unit_factor, torch.linalg.inv(self._box_vecs))
             # make sure fractional coordinates lie in [0,1), the repeated operation is intentional as small,
             # negative values get mapped to 1 (which is outside the permitted range) after the first operation
             self.__frac_ion_coords = aux_frac_coords - torch.floor(aux_frac_coords)
@@ -154,7 +154,7 @@ class System():
             raise ValueError('Parameter \'coord_type\' can only be \'cartesian\' or \'fractional\'')
         if not initialization:
             self.__update_ionic_potential()
-            self.__ene = self.__compute_energy()
+            self.__ene = self._compute_energy()
 
     def set_lattice(self, box_vecs, units='a', initialization=False):
         """
@@ -167,21 +167,21 @@ class System():
                                     of a new system object or not
         """
         if not initialization:
-            old_vol = self.__vol()
+            old_vol = self._vol()
         if units == 'a':
             unit_factor = self.A_per_b  # Angstrom
         elif units == 'b':
             unit_factor = 1.0  # Bohr
         else:
             raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
-        self.__box_vecs = box_vecs.clone().double().to(self.__device) / unit_factor
+        self._box_vecs = box_vecs.clone().double().to(self.__device) / unit_factor
         if not initialization:
             self.__update_ionic_potential()
-            self.__den *= old_vol / self.__vol()
-            self.__ene = self.__compute_energy()
+            self._den *= old_vol / self._vol()
+            self.__ene = self._compute_energy()
 
     def __potential_from_ions(self, cart_ion_coords):
-        kx, ky, kz, k2 = wavevecs(self.__box_vecs, self.__shape)
+        kx, ky, kz, k2 = wavevecs(self._box_vecs, self.__shape)
         k = torch.zeros(k2.shape, dtype=torch.double, device=k2.device)
         k[k2 != 0] = torch.sqrt(k2[k2 != 0])
         v_ext = torch.zeros(self.__shape, dtype=torch.double, device=self.__device)
@@ -189,12 +189,12 @@ class System():
         for species in self.__ions:
             v_s_ft = interpolate_recpot(species[1], k)
             positions = cart_ion_coords[counter:(counter + species[2]), :]
-            v_ext += lattice_sum(self.__box_vecs, self.__shape, positions, v_s_ft, self.__pme_order)
+            v_ext += lattice_sum(self._box_vecs, self.__shape, positions, v_s_ft, self.__pme_order)
             counter += species[2]
         return v_ext
 
     def __update_ionic_potential(self):
-        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self.__box_vecs)
+        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self._box_vecs)
         need_vext = False
         for functional in self.__terms:
             if functional.__qualname__ == 'IonElectron':
@@ -213,13 +213,13 @@ class System():
         """
         assert pot.shape == self.__shape, 'Shape of new potential must match the system\'s.'
         self.__v_ext = pot.clone().double().to(self.__device)
-        self.__ene = self.__compute_energy()
+        self.__ene = self._compute_energy()
 
     def initialize_density(self):
         """
         Initializes the density to that of a uniform density profile.
         """
-        self.__den = (self.__N_elec / self.__vol().detach()).repeat(self.__shape)
+        self._den = (self.__N_elec / self._vol().detach()).repeat(self.__shape)
 
     def set_density(self, den):
         """
@@ -229,8 +229,8 @@ class System():
           den (torch.Tensor): Given electron density (must match the system's shape attribute)
         """
         assert den.shape == self.__shape, 'Shape of new density must match the system\'s.'
-        self.__den = den.double().to(self.__device)
-        self.__ene = self.__compute_energy()
+        self._den = den.double().to(self.__device)
+        self.__ene = self._compute_energy()
 
     def set_electron_number(self, N):
         """
@@ -241,16 +241,16 @@ class System():
         """
         self.__N_elec = N
 
-    def __vol(self):
-        return torch.abs(torch.linalg.det(self.__box_vecs))
+    def _vol(self):
+        return torch.abs(torch.linalg.det(self._box_vecs))
 
     def detach(self):
         """
         Detaches all core variables from any computational graphs they may be in.
         This is used primarily as a clean-up tool to avoid autograd-related bugs.
         """
-        self.__box_vecs = self.__box_vecs.detach()
-        self.__den = self.__den.detach()
+        self._box_vecs = self._box_vecs.detach()
+        self._den = self._den.detach()
         self.__v_ext = self.__v_ext.detach()
         self.__frac_ion_coords = self.__frac_ion_coords.detach()
 
@@ -303,7 +303,7 @@ class System():
             unit_factor = 1.0  # Bohr
         else:
             raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
-        return unit_factor * self.__box_vecs
+        return unit_factor * self._box_vecs
 
     def ions(self):
         """
@@ -330,7 +330,7 @@ class System():
             unit_factor = 1.0  # Bohr
         else:
             raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
-        return unit_factor * torch.matmul(self.__frac_ion_coords, self.__box_vecs)
+        return unit_factor * torch.matmul(self.__frac_ion_coords, self._box_vecs)
 
     def fractional_ionic_coordinates(self):
         """
@@ -372,7 +372,7 @@ class System():
         if requires_grad:
             return self.__differentiable_gs_properties('density')
         else:
-            return self.__den.detach()
+            return self._den.detach()
 
     def check_density_convergence(self, method='dEdchi'):
         r"""
@@ -408,7 +408,7 @@ class System():
             return torch.max(torch.abs(dEdchi)).item()
         elif method == 'euler':
             dEdn = self.functional_derivative('density')
-            mu = torch.mean(dEdn * self.__den) * self.__vol() / self.__N_elec
+            mu = torch.mean(dEdn * self._den) * self._vol() / self.__N_elec
             return torch.max(torch.abs(mu - dEdn)).item()
 
     def functional_derivative(self, type='density', requires_grad=False):
@@ -429,21 +429,21 @@ class System():
         """
         self.detach()  # to avoid any core variables from having 'requires_grad = True'
         if type == 'density':
-            self.__den.requires_grad = True
-            E = self.__compute_energy(for_den_opt=True)
-            dEdn = torch.autograd.grad(E, self.__den, create_graph=requires_grad)[0] \
-                   / (self.__vol() / self.__den.numel())
-            self.__den = self.__den.detach()
+            self._den.requires_grad = True
+            E = self._compute_energy(for_den_opt=True)
+            dEdn = torch.autograd.grad(E, self._den, create_graph=requires_grad)[0] \
+                   / (self._vol() / self._den.numel())
+            self._den = self._den.detach()
             return dEdn
         elif type == 'chi':
-            chi = torch.sqrt(self.__den)
+            chi = torch.sqrt(self._den)
             chi.requires_grad = True
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy(for_den_opt=True)
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy(for_den_opt=True)
             dEdchi = torch.autograd.grad(E, chi, create_graph=requires_grad)[0] \
-                     / (self.__vol() / self.__den.numel())
-            self.__den = self.__den.detach()
+                     / (self._vol() / self._den.numel())
+            self._den = self._den.detach()
             return dEdchi
 
     def chemical_potential(self):
@@ -454,7 +454,7 @@ class System():
           torch.Tensor: Chemical potential
         """
         dEdn = self.functional_derivative('density')
-        return (torch.mean(dEdn * self.__den) * self.__vol() / self.__N_elec).item()
+        return (torch.mean(dEdn * self._den) * self._vol() / self.__N_elec).item()
 
     def energy(self, units='Ha', requires_grad=False):
         """
@@ -490,9 +490,9 @@ class System():
           float: Volume
         """
         if units == 'b3':
-            return self.__vol().item()
+            return self._vol().item()
         elif units == 'a3':
-            return self.__vol().item() * self.A_per_b**3
+            return self._vol().item() * self.A_per_b**3
         else:
             raise ValueError('Parameter \'units\' can only be \'b3\' or \'a3\'')
 
@@ -690,7 +690,7 @@ class System():
             unit_factor = self.GPa_per_atomic
         else:
             raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
-        return self.__compute_elastic_constants() * unit_factor
+        return self._compute_elastic_constants() * unit_factor
 
     def force_constants(self, primitive_ion_indices, units='eV/a2'):
         r"""
@@ -730,7 +730,7 @@ class System():
         """
         self.__Rc = Rc
 
-    def __ion_ion_interaction(self, cart_ion_coords):
+    def _ion_ion_interaction(self, cart_ion_coords):
         """
         Computes the ion-ion interaction energy of the system.
 
@@ -741,7 +741,7 @@ class System():
         for species in self.__ions:
             charges[counter:(counter + species[2])] = torch.full((species[2],), species[3], device=self.__device)
             counter += species[2]
-        interplanar_dist = 1 / torch.sqrt(torch.sum(torch.linalg.inv(self.__box_vecs.detach().T).pow(2), 1))
+        interplanar_dist = 1 / torch.sqrt(torch.sum(torch.linalg.inv(self._box_vecs.detach().T).square(), 1))
         h_max = torch.max(interplanar_dist)
 
         if self.__Rc is None:
@@ -749,26 +749,26 @@ class System():
         else:
             Rc = self.__Rc; Rd = torch.sqrt(h_max * Rc / 3)   # PROFESS 4.0 uses Rc = 250 bohr
 
-        E_ion = ion_interaction_sum(self.__box_vecs, cart_ion_coords, charges.double(), Rc, Rd)
+        E_ion = ion_interaction_sum(self._box_vecs, cart_ion_coords, charges.double(), Rc, Rd)
         self.__Eion_cache = E_ion.item()
         return E_ion
 
     ##################################
     # Density Optimization Functions #
     ##################################
-    def __compute_energy(self, for_den_opt=False, use_ion_cache=False):
+    def _compute_energy(self, for_den_opt=False, use_ion_cache=False):
         E = torch.zeros((1,), dtype=torch.double, device=self.__device)
         for functional in self.__terms:
             if functional.__qualname__ == 'IonElectron':
-                E += functional(self.__box_vecs, self.__den, self.__v_ext)
+                E += functional(self._box_vecs, self._den, self.__v_ext)
             elif functional.__qualname__ == 'IonIon':
                 if not for_den_opt:
                     if use_ion_cache:
                         E += self.__Eion_cache
                     else:
-                        E += self.__ion_ion_interaction(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
+                        E += self._ion_ion_interaction(torch.matmul(self.__frac_ion_coords, self._box_vecs))
             else:
-                E += functional(self.__box_vecs, self.__den)
+                E += functional(self._box_vecs, self._den)
         return E
 
     def optimize_density(self, ntol=1e-7, n_conv_cond_count=3, n_method='LBFGS', n_step_size=0.1,
@@ -809,15 +809,15 @@ class System():
         else:
             # compare energy computed from current density and uniform density
             # and choose the lower one for the initial state to speed up convergence
-            current_den = self.__den
-            current_E = self.__compute_energy(for_den_opt=True)
+            current_den = self._den
+            current_E = self._compute_energy(for_den_opt=True)
             self.initialize_density()
-            uniform_E = self.__compute_energy(for_den_opt=True)
+            uniform_E = self._compute_energy(for_den_opt=True)
             if current_E < uniform_E:
                 self.set_density(current_den)
 
         # initialize unconstrained optimization variable
-        chi = torch.sqrt(self.__den).requires_grad_()
+        chi = torch.sqrt(self._den).requires_grad_()
         if n_method == 'LBFGS':
             optimizer = LBFGSNew([chi], lr=n_step_size, history_size=8, max_iter=6)
         elif n_method == 'TPGD':
@@ -830,9 +830,9 @@ class System():
             def closure():
                 if torch.is_grad_enabled():
                     optimizer.zero_grad()
-                N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-                self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-                E = self.__compute_energy(for_den_opt=True)
+                N_tilde = torch.mean(chi.square()) * self._vol()
+                self._den = (self.__N_elec / N_tilde) * chi.square()
+                E = self._compute_energy(for_den_opt=True)
                 if E.requires_grad:
                     E.backward()
                 return E
@@ -843,17 +843,17 @@ class System():
                 if torch.is_grad_enabled():
                     optimizer.zero_grad()
                 chi.requires_grad = False
-                N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-                self.__den = ((self.__N_elec / N_tilde) * chi.pow(2))
-                E = self.__compute_energy(for_den_opt=True)
-                dEdn = potentials(self.__box_vecs, self.__den)
+                N_tilde = torch.mean(chi.square()) * self._vol()
+                self._den = ((self.__N_elec / N_tilde) * chi.square())
+                E = self._compute_energy(for_den_opt=True)
+                dEdn = potentials(self._box_vecs, self._den)
                 dEdchi = (self.__N_elec / N_tilde) * 2 * chi * \
-                         (dEdn - torch.mean(dEdn * self.__den) * self.__vol() / self.__N_elec)
+                         (dEdn - torch.mean(dEdn * self._den) * self._vol() / self.__N_elec)
                 chi.requires_grad = True
-                chi.grad = dEdchi * (self.__vol() / self.__den.numel())
+                chi.grad = dEdchi * (self._vol() / self._den.numel())
                 return E
 
-        E_prev = self.__compute_energy(for_den_opt=True).item() * self.eV_per_Ha
+        E_prev = self._compute_energy(for_den_opt=True).item() * self.eV_per_Ha
 
         if n_verbose:
             print('Starting density optimization')
@@ -866,9 +866,9 @@ class System():
         conv_counter = 0
         for iter in range(1, round(n_maxiter) + 1):
             optimizer.step(closure)
-            dEdchi = torch.abs(chi.grad / (self.__vol() / self.__den.numel())).max().item()
+            dEdchi = torch.abs(chi.grad / (self._vol() / self._den.numel())).max().item()
 
-            E = self.__compute_energy(for_den_opt=True).item() * self.eV_per_Ha
+            E = self._compute_energy(for_den_opt=True).item() * self.eV_per_Ha
             dE = E - E_prev
             E_prev = E
 
@@ -905,37 +905,42 @@ class System():
                 if n_verbose:
                     print('Density optimization failed to converge in {} steps \n'.format(int(iter)))
         self.detach()
-        self.__ene = self.__compute_energy(use_ion_cache=True)
+        self.__ene = self._compute_energy(use_ion_cache=True)
 
     ##############################################
     # First-order Derivative Terms and Functions #
     ##############################################
     def __compute_forces(self):
-        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self.__box_vecs)
-        cart_ion_coords.requires_grad = True
+        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self._box_vecs)
+        cart_ion_coords.requires_grad_()
         U = 0
         for functional in self.__terms:
             if functional.__name__ == 'IonElectron':
-                U += functional(self.__box_vecs, self.__den, self.__potential_from_ions(cart_ion_coords))
+                U = U + functional(self._box_vecs, self._den, self.__potential_from_ions(cart_ion_coords))
             elif functional.__name__ == 'IonIon':
-                U += self.__ion_ion_interaction(cart_ion_coords)
-        forces = - torch.autograd.grad(U, cart_ion_coords)[0]
-        return forces
+                U = U + self._ion_ion_interaction(cart_ion_coords)
+        return torch.autograd.grad(U, [cart_ion_coords])[0].neg_()
 
     def __compute_stress(self):
-        self.__box_vecs.requires_grad = True
+        # use voigt strain trick to get stress
+        voigt_strain = torch.zeros((6,),
+                                   dtype=self._box_vecs.dtype,
+                                   device=self._box_vecs.device,
+                                   requires_grad=True)
+        deformation = (torch.eye(3, dtype=voigt_strain.dtype, device=voigt_strain.device)
+                       .add_(_voigt_to_3by3_strain(voigt_strain)))
+        self._box_vecs = torch.matmul(self._box_vecs, deformation)
         # incorporate lattice vector dependence in density
-        self.__den = self.__den * self.__vol().detach() / self.__vol()
-        self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
-        # calculate stress by auto-differentiating energy wrt lattice vectors
-        E = self.__compute_energy()
-        dEdcell = torch.autograd.grad(E, self.__box_vecs)[0].T
+        self._den = self._den * self._vol().detach() / self._vol()
+        # incorporate lattice vector dependence in positions
+        self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self._box_vecs))
+        E = self._compute_energy()
+        dEdstrain = torch.autograd.grad(E, voigt_strain)[0]
         self.detach()  # reset autograd features
-        stress = torch.matmul(dEdcell, self.__box_vecs) / self.__vol()
-        return 0.5 * (stress + stress.T)  # symmetrize
+        return _voigt_to_3by3_stress(dEdstrain.div(self._vol()))
 
     def optimize_geometry(self, ftol=0.02, stol=0.002, g_conv_cond_count=3, g_method='LBFGSlinesearch',
-                                g_step_size=0.1, g_maxiter=1000, g_verbose=False, **den_opt_kwargs):
+                          g_step_size=0.1, g_maxiter=1000, g_verbose=False, **den_opt_kwargs):
         """
         Performs a geometry optimization to minimize the energy by varying the ionic positions and/or lattice vectors,
         minimizing the ionic forces and stress in the process.
@@ -972,7 +977,7 @@ class System():
         den_opt_inputs.update(den_opt_kwargs)
 
         frac_ion_coords = self.__frac_ion_coords.clone()
-        box_vecs = self.__box_vecs.clone()
+        box_vecs = self._box_vecs.clone()
         param_list = []
         if ftol is not None:
             frac_ion_coords.requires_grad = True
@@ -998,12 +1003,12 @@ class System():
             if torch.is_grad_enabled():
                 optimizer.zero_grad()
             self.__frac_ion_coords = frac_ion_coords
-            self.__box_vecs = box_vecs
+            self._box_vecs = box_vecs
             # incorporate lattice vector dependence in ionic potential
             self.__update_ionic_potential()
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy()
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy()
             if E.requires_grad:
                 E.backward(inputs=param_list)
             return E
@@ -1021,7 +1026,7 @@ class System():
 
         conv_counter = 0; success_iter = None
         for iter in range(1, round(g_maxiter) + 1):
-            chi = torch.sqrt(self.__den)
+            chi = torch.sqrt(self._den)
             optimizer.step(closure)
             self.detach()
 
@@ -1126,12 +1131,12 @@ class System():
                 optimizer.zero_grad()
             box_vecs, frac_ion_coords = parameterized_geometry(params)
             self.__frac_ion_coords = frac_ion_coords
-            self.__box_vecs = box_vecs
+            self._box_vecs = box_vecs
             # incorporate lattice vector dependence in ionic potential
             self.__update_ionic_potential()
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy()
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy()
             if E.requires_grad:
                 E.backward(inputs=[params])
             return E
@@ -1153,7 +1158,7 @@ class System():
 
         conv_counter = 0; success_iter = None
         for iter in range(1, round(g_maxiter) + 1):
-            chi = torch.sqrt(self.__den)
+            chi = torch.sqrt(self._den)
             optimizer.step(closure)
             self.detach()
 
@@ -1205,13 +1210,13 @@ class System():
         # output is 'energy' or 'density'
 
         def energy(chi):
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy()
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy()
             return E
 
         # use Xitorch's minimize to get "minimization functional" derivative
-        chi = torch.sqrt(self.__den)
+        chi = torch.sqrt(self._den)
         chi = minimize(energy, chi, method='gd', maxiter=0)
 
         if output == 'energy':
@@ -1219,25 +1224,25 @@ class System():
             self.detach()  # reset autograd features
             return E
         elif output == 'density':
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            return (self.__N_elec / N_tilde) * chi.pow(2)
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            return (self.__N_elec / N_tilde) * chi.square()
 
     def __compute_volume_derivatives(self, requires_grad=False, bulk_modulus=True):
-        box_vecs = self.__box_vecs.clone()
-        vol = self.__vol()
+        box_vecs = self._box_vecs.clone()
+        vol = self._vol()
         vol.requires_grad = True
 
         def energy(chi, vol):
             # incorporate volume dependence in lattice vectors and hence ionic potential
-            self.__box_vecs = box_vecs * (vol / vol.detach()).pow(1 / 3)
-            self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
-            N_tilde = torch.mean(chi.pow(2)) * vol
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy()
+            self._box_vecs = box_vecs * (vol / vol.detach()).pow(1 / 3)
+            self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self._box_vecs))
+            N_tilde = torch.mean(chi.square()) * vol
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy()
             return E
 
         # use Xitorch's minimize to get "minimization functional" derivative
-        chi = torch.sqrt(self.__den)
+        chi = torch.sqrt(self._den)
         if requires_grad or bulk_modulus:
             chi = minimize(energy, chi, params=(vol,), method='gd', maxiter=0)
         E = energy(chi, vol)
@@ -1246,111 +1251,63 @@ class System():
         dEdV = torch.autograd.grad(E, vol, create_graph=True)[0]
         if bulk_modulus:
             d2EdV2 = torch.autograd.grad(dEdV, vol, create_graph=True)[0]
-            K = self.__vol().detach() * d2EdV2
+            K = self._vol().detach() * d2EdV2
 
         self.detach()  # reset autograd features
 
         if requires_grad and bulk_modulus:
-            return -dEdV, K
+            return dEdV.neg_(), K
         elif requires_grad and (not bulk_modulus):
-            return -dEdV
+            return dEdV.neg_()
         elif (not requires_grad) and bulk_modulus:
-            return (-dEdV).item(), K.item()
+            return dEdV.neg_().item(), K.item()
         elif (not requires_grad) and (not bulk_modulus):
-            return (-dEdV).item()
+            return dEdV.neg_().item()
 
-    def __compute_elastic_constants(self):
-        box_vecs = self.__box_vecs.clone()
-        box_vecs.requires_grad = True
+    def _compute_elastic_constants(self):
 
-        def energy(chi, box_vecs):
-            # incorporate lattice vector dependence in ionic potential
-            self.__box_vecs = box_vecs
-            self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self.__box_vecs))
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy()
+        def energy(chi, voigt_strain):
+            deformation = (torch.eye(3, dtype=voigt_strain.dtype, device=voigt_strain.device)
+                           .add_(_voigt_to_3by3_strain(voigt_strain)))
+            self._box_vecs = torch.matmul(self._box_vecs, deformation)
+            self.__v_ext = self.__potential_from_ions(torch.matmul(self.__frac_ion_coords, self._box_vecs))
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy()
             return E
 
+        voigt_strain = torch.zeros((6,),
+                                   dtype=self._box_vecs.dtype,
+                                   device=self._box_vecs.device,
+                                   requires_grad=True)
+
         # use Xitorch's minimize to get "minimization functional" derivative
-        chi_init = torch.sqrt(self.__den)
-        chi_opt = minimize(energy, chi_init, params=(box_vecs,), method='gd', maxiter=0)
-        E = energy(chi_opt, box_vecs)
+        chi_init = torch.sqrt(self._den)
+        chi_opt = minimize(energy, chi_init, params=(voigt_strain,), method='gd', maxiter=0)
+        E = energy(chi_opt, voigt_strain)
 
-        # calculate elastic constants by auto-differentiating energy wrt lattice vectors
-        dEdh = torch.autograd.grad(E, box_vecs, create_graph=True)[0].T
-        stress = torch.matmul(dEdh, box_vecs) / self.__vol()
-
-        ds11dh = torch.autograd.grad(stress[0, 0], box_vecs, retain_graph=True)[0].T
-        ds22dh = torch.autograd.grad(stress[1, 1], box_vecs, retain_graph=True)[0].T
-        ds33dh = torch.autograd.grad(stress[2, 2], box_vecs, retain_graph=True)[0].T
-        ds23dh = torch.autograd.grad(stress[1, 2], box_vecs, retain_graph=True)[0].T
-        ds13dh = torch.autograd.grad(stress[0, 2], box_vecs, retain_graph=True)[0].T
-        ds12dh = torch.autograd.grad(stress[0, 1], box_vecs, retain_graph=False)[0].T
-
+        # calculate elastic constants by auto-differentiating energy wrt voigt strain
+        voigt_stress = torch.autograd.grad(E, voigt_strain, create_graph=True)[0].div(self._vol())
+        Cs = torch.stack([torch.autograd.grad(voigt_stress[i],
+                                              voigt_strain,
+                                              retain_graph=True)[0] for i in range(6)], -1)
         self.detach()  # reset autograd features
-
-        # calculate elastic constants
-        C11kl = torch.matmul(ds11dh, self.__box_vecs)
-        C11kl = 0.5 * (C11kl + C11kl.T)  # symmetrize
-        C1111, C1112, C1113 = C11kl[0, :]  # Y Y Y
-        C1121, C1122, C1123 = C11kl[1, :]  # N Y Y
-        C1131, C1132, C1133 = C11kl[2, :]  # N N Y
-
-        C22kl = torch.matmul(ds22dh, self.__box_vecs)
-        C22kl = 0.5 * (C22kl + C22kl.T)  # symmetrize
-        C2211, C2212, C2213 = C22kl[0, :]  # N Y Y
-        C2221, C2222, C2223 = C22kl[1, :]  # N Y Y
-        C2231, C2232, C2233 = C22kl[2, :]  # N N Y
-
-        C33kl = torch.matmul(ds33dh, self.__box_vecs)
-        C33kl = 0.5 * (C33kl + C33kl.T)  # symmetrize
-        C3311, C3312, C3313 = C33kl[0, :]  # N Y Y
-        C3321, C3322, C3323 = C33kl[1, :]  # N N Y
-        C3331, C3332, C3333 = C33kl[2, :]  # N N Y
-
-        C23kl = torch.matmul(ds23dh, self.__box_vecs)
-        C23kl = 0.5 * (C23kl + C23kl.T)  # symmetrize
-        C2311, C2312, C2313 = C23kl[0, :]  # N Y Y
-        C2321, C2322, C2323 = C23kl[1, :]  # N N Y
-        C2331, C2332, C2333 = C23kl[2, :]  # N N N
-
-        C13kl = torch.matmul(ds13dh, self.__box_vecs)
-        C13kl = 0.5 * (C13kl + C13kl.T)  # symmetrize
-        C1311, C1312, C1313 = C13kl[0, :]  # N Y Y
-        C1321, C1322, C1323 = C13kl[1, :]  # N N N
-        C1331, C1332, C1333 = C13kl[2, :]  # N N N
-
-        C12kl = torch.matmul(ds12dh, self.__box_vecs)
-        C12kl = 0.5 * (C12kl + C12kl.T)  # symmetrize
-        C1211, C1212, C1213 = C12kl[0, :]  # N Y N
-        C1221, C1222, C1223 = C12kl[1, :]  # N N N
-        C1231, C1232, C1233 = C12kl[2, :]  # N N N
-
-        Cs = torch.zeros((6, 6), dtype=torch.double, device=self.__device)
-        Cs[0, 0] = C1111; Cs[0, 1] = C1122; Cs[0, 2] = C1133; Cs[0, 3] = C1123; Cs[0, 4] = C1113; Cs[0, 5] = C1112
-        Cs[1, 1] = C2222; Cs[1, 2] = C2233; Cs[1, 3] = C2223; Cs[1, 4] = C2213; Cs[1, 5] = C2212
-        Cs[2, 2] = C3333; Cs[2, 3] = C3323; Cs[2, 4] = C3313; Cs[2, 5] = C3312
-        Cs[3, 3] = C2323; Cs[3, 4] = C2313; Cs[3, 5] = C2312
-        Cs[4, 4] = C1313; Cs[4, 5] = C1312
-        Cs[5, 5] = C1212
-        Cs = Cs + torch.tril(Cs.T, diagonal=-1)
         return Cs
 
     def __compute_force_constants(self, primitive_ion_indices):
-        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self.__box_vecs)
+        cart_ion_coords = torch.matmul(self.__frac_ion_coords, self._box_vecs)
         cart_ion_coords.requires_grad = True
 
         def energy(chi, cart_ion_coords):
             # incorporate ionic coordinate dependence in ionic potential
             self.__v_ext = self.__potential_from_ions(cart_ion_coords)
-            N_tilde = torch.mean(chi.pow(2)) * self.__vol()
-            self.__den = (self.__N_elec / N_tilde) * chi.pow(2)
-            E = self.__compute_energy(for_den_opt=True) + self.__ion_ion_interaction(cart_ion_coords)
+            N_tilde = torch.mean(chi.square()) * self._vol()
+            self._den = (self.__N_elec / N_tilde) * chi.square()
+            E = self._compute_energy(for_den_opt=True) + self._ion_ion_interaction(cart_ion_coords)
             return E
 
         # use Xitorch's minimize to get "minimization functional" derivative
-        chi_init = torch.sqrt(self.__den)
+        chi_init = torch.sqrt(self._den)
         chi_opt = minimize(energy, chi_init, params=(cart_ion_coords,), method='gd', maxiter=0)
         E = energy(chi_opt, cart_ion_coords)
 
@@ -1365,3 +1322,31 @@ class System():
 
         self.detach()  # reset autograd features
         return force_constants
+
+
+# -------------------------------------------------------------------------------------
+# Utility Functions
+# -------------------------------------------------------------------------------------
+
+def _voigt_to_3by3_strain(voigt_strain: torch.Tensor):
+    """
+    Autograd compatible function that has the same effect as the following:
+
+    return torch.tensor([[voigt_strain[0], 0.5 * voigt_strain[5], 0.5 * voigt_strain[4]],
+                         [0.5 * voigt_strain[5], voigt_strain[1], 0.5 * voigt_strain[3]],
+                         [0.5 * voigt_strain[4], 0.5 * voigt_strain[3], voigt_strain[2]]],
+                         dtype=voigt_strain.dtype, device=voigt_strain.device)
+    """
+    ids = torch.tensor([0, 5, 4, 1, 3, 2], dtype=torch.long, device=voigt_strain.device)
+    sorted_vstrain = voigt_strain[ids]
+    id1, id2 = torch.triu_indices(3, 3)
+    strain = torch.zeros((3, 3), dtype=voigt_strain.dtype, device=voigt_strain.device)
+    strain[id1, id2] = sorted_vstrain
+    return 0.5 * (strain + strain.T)
+
+
+def _voigt_to_3by3_stress(voigt_stress: torch.Tensor):
+    return torch.tensor([[voigt_stress[0], voigt_stress[5], voigt_stress[4]],
+                         [voigt_stress[5], voigt_stress[1], voigt_stress[3]],
+                         [voigt_stress[4], voigt_stress[3], voigt_stress[2]]],
+                         dtype=voigt_stress.dtype, device=voigt_stress.device)

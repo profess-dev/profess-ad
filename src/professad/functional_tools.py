@@ -25,9 +25,9 @@ def get_functional_derivative(box_vecs, den, functional, requires_grad=False):
     Returns:
       torch.Tensor: Functional derivative
     """
-    den.requires_grad = True
+    den.requires_grad_()
     functional_derivative = torch.autograd.grad(functional(box_vecs, den), den, create_graph=requires_grad)[0]
-    den.requires_grad = False
+    den.requires_grad_(False)
     return functional_derivative / (torch.abs(torch.linalg.det(box_vecs)) / den.numel())
 
 
@@ -124,7 +124,7 @@ def get_pressure(box_vecs, den, functional, requires_grad=False):
     vol = torch.abs(torch.linalg.det(box_vecs))
     vol.requires_grad = True
     F = functional(box_vecs * (vol / vol.detach()).pow(1 / 3), den * vol.detach() / vol)
-    return - torch.autograd.grad(F, vol, create_graph=requires_grad)[0]
+    return torch.autograd.grad(F, vol, create_graph=requires_grad)[0].neg()
 
 
 # -----------------------------------------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ def wavevecs(box_vecs, shape):
     kx = nA * b[0, 0] + nB * b[1, 0] + nC * b[2, 0]
     ky = nA * b[0, 1] + nB * b[1, 1] + nC * b[2, 1]
     kz = nA * b[0, 2] + nB * b[1, 2] + nC * b[2, 2]
-    k2 = kx.pow(2) + ky.pow(2) + kz.pow(2)
+    k2 = kx.square() + ky.square() + kz.square()
     return kx, ky, kz, k2
 
 
@@ -224,7 +224,7 @@ def laplacian(k2, f):
     Returns:
       torch.Tensor: Laplacian
     """
-    return torch.fft.irfftn(-k2 * torch.fft.rfftn(f), f.shape)
+    return torch.fft.irfftn(k2.neg() * torch.fft.rfftn(f), f.shape)
 
 
 def reduced_gradient(kx, ky, kz, den):
@@ -312,11 +312,7 @@ def interpolate(x, y, xs):
     dx = (x[idxs + 1] - x[idxs])
     t = ((xs - x[idxs]) / dx).unsqueeze(0).expand((4,) + xs.shape)
 
-    a = torch.arange(4, device=xs.device)
-    for _ in range(len(xs.shape)):
-        a = a.unsqueeze(-1)
-    a = a.expand((-1,) + xs.shape)
-
+    a = torch.arange(4, device=xs.device).reshape((4,) + ((1,) * len(xs.shape))).expand((-1,) + xs.shape)
     tt = torch.ones(a.shape, dtype=torch.double, device=xs.device)
     tt[a != 0] = t[a != 0].pow(a[a != 0])
 
@@ -325,10 +321,7 @@ def interpolate(x, y, xs):
         [0, 1, -2, 1],
         [0, 0, 3, -2],
         [0, 0, -1, 1]
-    ], dtype=t.dtype, device=xs.device)
-    for _ in range(len(xs.shape)):
-        A = A.unsqueeze(-1)
-    A = A.expand((-1, -1) + xs.shape)
+    ], dtype=t.dtype, device=xs.device).reshape((4, 4) + ((1,) * len(xs.shape)))
 
     hh = torch.sum(A * tt, axis=1)
     return hh[0] * y[idxs] + hh[1] * m[idxs] * dx + hh[2] * y[idxs + 1] + hh[3] * m[idxs + 1] * dx
