@@ -39,34 +39,37 @@ Basic Example
 -------------
 Let us consider a basic example with the following code ::
 
-  # set energy terms and functionals to be used
-  terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+    from professad.system import System
+    from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+    from professad.crystal_tools import get_cell
 
-  # use "get cell" to get the lattice vectors and fractional ionic coordinates of
-  # a face-centred cubic (fcc) lattice
-  box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=24.8, coord_type='fractional')
+    # set energy terms and functionals to be used
+    terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
 
-  # defining the ions in the system
-  ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
+    # use "get cell" to get the lattice vectors and fractional ionic coordinates of
+    # a face-centred cubic (fcc) lattice
+    box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=24.8, coord_type='fractional')
 
-  # set plane-wave cutoff at 2000 eV
-  shape = System.ecut2shape(2000, box_vecs)
+    # defining the ions in the system
+    ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 
-  # create an fcc-aluminium system object
-  system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional')
+    # set plane-wave cutoff at 2000 eV
+    shape = System.ecut2shape(2000, box_vecs)
 
-  # perform density optimization (by default n_verbose is False, but we want to
-  # display the progress of the density optimization)
-  system.optimize_density(ntol=1e-7, conv_target='dE', n_method='LBFGS', n_verbose=True)
+    # create an fcc-aluminium system object
+    system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional')
 
-  # check the measures of convergence
-  dEdchi_max = system.check_density_convergence('dEdchi')
-  mu_minus_dEdn_max = system.check_density_convergence('euler')
+    # perform density optimization (by default n_verbose is False, but we want to
+    # display the progress of the density optimization)
+    system.optimize_density(ntol=1e-8, conv_target='dE', n_method='LBFGS', n_verbose=True)
 
-  print('Convergence check:')
-  print('Max |𝛿E/𝛿χ| = {:.4g}'.format(dEdchi_max))
-  print('Max |µ-𝛿E/𝛿n| = {:.4g}'.format(mu_minus_dEdn_max))
+    # check the measures of convergence
+    dEdchi_max = system.check_density_convergence('dEdchi')
+    mu_minus_dEdn_max = system.check_density_convergence('euler')
 
+    print('Convergence check:')
+    print('Max |𝛿E/𝛿χ| = {:.4g}'.format(dEdchi_max))
+    print('Max |µ-𝛿E/𝛿n| = {:.4g}'.format(mu_minus_dEdn_max))
 
 This sets up a face-centred cubic (fcc) aluminium system and performs a density optimization. 
 With the default settings, termination of the density optimization is based on the energy 
@@ -74,40 +77,42 @@ differences ``dE``. We can also use the other measures of convergence (which cor
 extent that the Euler-Lagrange equations are obeyed) to make sure that the density has been
 optimized to the desired extent.  ::
 
-  Starting density optimization
-    Iter      E [eV]      dE [eV]       Max |𝛿E/𝛿χ|       Max |µ-𝛿E/𝛿n|
-     0       9.677157        0            0.865837           3.23348
-     1       8.403218     -1.27394        0.473481           2.20042
-     2       7.702040    -0.701178        0.550324           3.37185
-     3       7.548173    -0.153867        0.211747           1.38436
-     4       7.507185    -0.0409875       0.107438           0.771551
-     5       7.485764    -0.0214207       0.089752           0.769107
-     6       7.458289    -0.0274754      0.0758372           0.628908
-     7       7.429842    -0.0284467      0.0384012           0.223996
-     8       7.421262   -0.00857984      0.0292648           0.124719
-     9       7.418701   -0.00256096      0.0197278           0.106185
-     10      7.417557   -0.00114492      0.0106644          0.0758516
-     11      7.417031   -0.000525209     0.00736959         0.0539031
-     12      7.416772   -0.000259712     0.00520798         0.0398683
-     13      7.416638   -0.000133214     0.00248938         0.0136218
-     14      7.416570   -6.88236e-05     0.00358424          0.018048
-     15      7.416518   -5.1554e-05      0.00181108         0.00946193
-     16      7.416493   -2.47783e-05     0.00164527         0.00834793
-     17      7.416479   -1.46257e-05     0.00139808         0.00779606
-     18      7.416465   -1.38169e-05     0.00105684         0.0047043
-     19      7.416458   -6.52723e-06     0.00103864         0.00740266
-     20      7.416455   -3.72415e-06    0.000876987         0.00351695
-     21      7.416452   -2.1472e-06     0.000503422         0.00219884
-     22      7.416451   -9.56176e-07    0.000351898         0.00153222
-     23      7.416451   -2.24164e-07    0.000156075        0.000990379
-     24      7.416451   -2.25588e-08    0.000131899        0.000806672
-     25      7.416451   -1.69511e-08    0.000139933        0.000889683
-     26      7.416451   -1.92808e-08    9.49472e-05        0.000544465
-  Density optimization successfully converged in 26 step(s)
+    Starting density optimization
+      Iter      E [eV]      dE [eV]       Max |𝛿E/𝛿χ|       Max |µ-𝛿E/𝛿n|
+       0       9.677157        0            0.865837           3.23348
+       1       8.402401     -1.27476        0.487137           2.35502
+       2       7.725179    -0.677222        0.96897            6.44369
+       3       7.551037    -0.174142        0.355639           2.86795
+       4       7.500361    -0.0506765       0.122207           0.971834
+       5       7.469539    -0.0308211      0.0744395           0.506866
+       6       7.435213    -0.0343262      0.0645272           0.402158
+       7       7.421952    -0.013261       0.0390261           0.193177
+       8       7.418364   -0.00358831      0.0121657          0.0588597
+       9       7.417288   -0.00107621      0.00717808         0.0379926
+       10      7.416872   -0.000415458     0.00544809         0.0215395
+       11      7.416667    -0.0002054      0.00471068         0.0263602
+       12      7.416536   -0.000131395     0.00329052         0.0155277
+       13      7.416476   -5.93312e-05     0.00169214         0.00903062
+       14      7.416460   -1.58538e-05    0.000769878         0.00336871
+       15      7.416455   -4.88015e-06    0.000357037         0.00274389
+       16      7.416453   -2.12094e-06    0.000300369         0.0023081
+       17      7.416452   -1.32667e-06    0.000199978         0.0012746
+       18      7.416451   -9.53584e-07    0.000123416        0.000653972
+       19      7.416450   -5.73412e-07    0.000351282         0.0014773
+       20      7.416450   -5.21841e-07    0.000160754        0.000846587
+       21      7.416450   -2.1411e-07     9.90371e-05        0.000685477
+       22      7.416450   -1.97174e-08    0.000110328        0.000481698
+       23      7.416450   -1.65081e-08    9.03609e-05        0.000426647
+       24      7.416450   -1.38865e-08    0.000156184         0.00119972
+       25      7.416450   -1.03231e-08    0.000149286         0.00114674
+       26      7.416450   -9.50691e-09     8.7648e-05         0.00056471
+       27      7.416450   -8.49152e-09    8.03899e-05        0.000528181
+       28      7.416450   -7.25749e-09    6.13221e-05        0.000441538
+    Density optimization successfully converged in 28 step(s)
 
-  Convergence check:
-  Max |𝛿E/𝛿χ| = 9.424e-05
-  Max |µ-𝛿E/𝛿n| = 0.0005445
+    Convergence check:
+    Max |𝛿E/𝛿χ| = 6.086e-05
+    Max |µ-𝛿E/𝛿n| = 0.0004415
 
 Example with Custom Potentials (Quantum Harmonic Oscillator)
 ------------------------------------------------------------
@@ -117,58 +122,64 @@ density optimization. The procedure is similar to the above, just that we have t
 supply a dummy ``ions`` parameter to initialize the ``system`` object before setting the
 potential to our desired one, remembering to change the electron number of the system too. :: 
 
-  # the single electron quantum harmonic oscillator (QHO) is a non-interacting
-  # single-orbital system - hence, it can be modelled well with just the 
-  # ion-electron interaction and Weizsaecker terms
-  terms = [IonElectron, Weizsaecker]
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import torch
 
-  # use a large box to simulate such localied systems with periodic
-  # boundary conditions so that the electron density will approach zero
-  # at the box boundaries
-  L = 20.0
-  box_vecs = L * torch.eye(3, dtype=torch.double)
+    from professad.system import System
+    from professad.functionals import IonElectron, Weizsaecker
 
-  # set low energy cutoff of 300 eV
-  shape = System.ecut2shape(300, box_vecs)
+    # the single electron quantum harmonic oscillator (QHO) is a non-interacting
+    # single-orbital system - hence, it can be modelled well with just the
+    # ion-electron interaction and Weizsaecker terms
+    terms = [IonElectron, Weizsaecker]
 
-  # as we will set the external potential ourselves later, we just need to
-  # submit a dummy "ions" parameter (the recpot file and ionic coordinates 
-  # are arbitrary for this example)
-  ions = [['-', 'al.gga.recpot', torch.tensor([[0.5, 0.5, 0.5]]).double()]]
+    # use a large box to simulate such localied systems with periodic
+    # boundary conditions so that the electron density will approach zero
+    # at the box boundaries
+    L = 20.0
+    box_vecs = L * torch.eye(3, dtype=torch.double)
 
-  # create system object
-  system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
+    # set low energy cutoff of 300 eV
+    shape = System.ecut2shape(300, box_vecs)
 
-  # as we have used an arbitrary recpot file, we need to set the electron number explicitly
-  system.set_electron_number(1)
+    # as we will set the external potential ourselves later, we just need to
+    # submit a dummy "ions" parameter (the recpot file and ionic coordinates
+    # are arbitrary for this example)
+    ions = [['-', 'al.gga.recpot', torch.tensor([[0.5, 0.5, 0.5]]).double()]]
 
-  # QHO quadratic potential
-  k = 10
-  xf, yf, zf = np.meshgrid(np.arange(shape[0]) / shape[0], np.arange(shape[1]) / shape[1],
-                           np.arange(shape[2]) / shape[2], indexing='ij')
-  x = box_vecs[0, 0] * xf + box_vecs[1, 0] * yf + box_vecs[2, 0] * zf
-  y = box_vecs[0, 1] * xf + box_vecs[1, 1] * yf + box_vecs[2, 1] * zf
-  z = box_vecs[0, 2] * xf + box_vecs[1, 2] * yf + box_vecs[2, 2] * zf
-  r = np.sqrt(x * x + y * y + z * z)
-  qho_pot = 0.5 * k * ((x - L / 2).pow(2) + (y - L / 2).pow(2) + (z - L / 2).pow(2))
+    # create system object
+    system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
 
-  # set external potential to QHO potential
-  system.set_potential(torch.as_tensor(qho_pot).double())
+    # as we have used an arbitrary recpot file, we need to set the electron number explicitly
+    system.N_elec = 1
 
-  # perform density optimization
-  system.optimize_density(ntol=1e-7, n_verbose=True)
+    # QHO quadratic potential
+    k = 10
+    xf, yf, zf = np.meshgrid(np.arange(shape[0]) / shape[0], np.arange(shape[1]) / shape[1],
+                             np.arange(shape[2]) / shape[2], indexing='ij')
+    x = box_vecs[0, 0] * xf + box_vecs[1, 0] * yf + box_vecs[2, 0] * zf
+    y = box_vecs[0, 1] * xf + box_vecs[1, 1] * yf + box_vecs[2, 1] * zf
+    z = box_vecs[0, 2] * xf + box_vecs[1, 2] * yf + box_vecs[2, 2] * zf
+    r = np.sqrt(x * x + y * y + z * z)
+    qho_pot = 0.5 * k * ((x - L / 2).pow(2) + (y - L / 2).pow(2) + (z - L / 2).pow(2))
 
-  # compare optimized energy and the ones expected from elementary quantum mechanics
-  print('Optimized energy = {:.8f} Ha'.format(system.energy('Ha')))
-  print('Expected energy = {:.8f} Ha'.format(3 / 2 * np.sqrt(k)))
+    # set external potential to QHO potential
+    system.set_potential(torch.as_tensor(qho_pot).double())
 
-  # check measures of convergence
-  dEdchi_max = system.check_density_convergence('dEdchi')
-  mu_minus_dEdn_max = system.check_density_convergence('euler')
-  print('\nConvergence check:')
-  print('Max |𝛿E/𝛿χ| = {:.4g}'.format(dEdchi_max))
-  print('Max |µ-𝛿E/𝛿n| = {:.4g}'.format(mu_minus_dEdn_max))
+    # perform density optimization
+    system.optimize_density(ntol=1e-7, n_verbose=True)
 
+    # compare optimized energy and the ones expected from elementary quantum mechanics
+    print('Optimized energy = {:.8f} Ha'.format(system.energy('Ha')))
+    print('Expected energy = {:.8f} Ha'.format(3 / 2 * np.sqrt(k)))
+
+    # check measures of convergence
+    dEdchi_max = system.check_density_convergence('dEdchi')
+    mu_minus_dEdn_max = system.check_density_convergence('euler')
+    print('\nConvergence check:')
+    print('Max |𝛿E/𝛿χ| = {:.4g}'.format(dEdchi_max))
+    print('Max |µ-𝛿E/𝛿n| = {:.4g}'.format(mu_minus_dEdn_max))
 
 This results in ::
 

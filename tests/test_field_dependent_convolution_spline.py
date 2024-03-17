@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import unittest
 
-from professad.functional_tools import field_dependent_convolution, wavevecs
+from professad.functional_tools import field_dependent_convolution, wavevectors
 
 
 class TestSpline(unittest.TestCase):
@@ -11,14 +11,16 @@ class TestSpline(unittest.TestCase):
         shape = (20, 20, 20)
         box_vecs = 2 * torch.eye(3, dtype=torch.double)
 
-        xf, yf, zf = np.meshgrid(np.arange(shape[0]) / shape[0], np.arange(shape[1]) / shape[1],
-                                 np.arange(shape[2]) / shape[2], indexing='ij')
+        xf, yf, zf = np.meshgrid(np.arange(shape[0]) / shape[0],
+                                 np.arange(shape[1]) / shape[1],
+                                 np.arange(shape[2]) / shape[2],
+                                 indexing='ij')
         x = box_vecs[0, 0] * xf + box_vecs[1, 0] * yf + box_vecs[2, 0] * zf
         y = box_vecs[0, 1] * xf + box_vecs[1, 1] * yf + box_vecs[2, 1] * zf
         z = box_vecs[0, 2] * xf + box_vecs[1, 2] * yf + box_vecs[2, 2] * zf
         r = np.sqrt(x * x + y * y + z * z)
 
-        kx, ky, kz, k2 = wavevecs(box_vecs, shape)
+        k2 = wavevectors(box_vecs, shape).square().sum(-1)
 
         # Yukawa potential in Fourier space, K(q,ξ) = 4π/(q²+ξ²)
         def K_tilde(k2, xi_sparse):

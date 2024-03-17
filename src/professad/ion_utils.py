@@ -1,6 +1,7 @@
 import numpy as np
+from math import pi, sqrt
 import torch
-from professad.functional_tools import wavevecs, interpolate
+from professad.functional_tools import wavevectors, interpolate
 from torch_nl import compute_neighborlist
 
 # ----------------------------------------------------------------------------
@@ -42,7 +43,7 @@ def get_ion_charge(path):
         pot012 = np.asarray(f.readline().split(), dtype=np.float64) * pot_conv_factor
     num_ks = 3 * (total_lines - comment_lines - 3)
     dk = k_max / (num_ks - 1)
-    z = round((pot012[1] - pot012[0]) * dk * dk / (-4 * np.pi))
+    z = round((pot012[1] - pot012[0]) * dk * dk / (-4 * pi))
     return z
 
 
@@ -70,14 +71,14 @@ def interpolate_recpot(path, ks_interp):
                 pot_ft += line.split()
     pot_ft = np.asarray(pot_ft, dtype=np.float64, order='C') * pot_conv_factor
     ks, dk = np.linspace(0, k_max, pot_ft.size, retstep=True)
-    z = round((pot_ft[1] - pot_ft[0]) * dk * dk / (-4 * np.pi))
-    pot_ft[1:] += 4 * np.pi * z / (ks[1:] * ks[1:])
-    ks_torch = torch.as_tensor(ks, dtype=torch.double, device=ks_interp.device)
-    pot_ft_torch = torch.as_tensor(pot_ft, dtype=torch.double, device=ks_interp.device)
+    z = round((pot_ft[1] - pot_ft[0]) * dk * dk / (-4 * pi))
+    pot_ft[1:] += 4 * pi * z / (ks[1:] * ks[1:])
+    ks_torch = torch.as_tensor(ks, dtype=ks_interp.dtype, device=ks_interp.device)
+    pot_ft_torch = torch.as_tensor(pot_ft, dtype=ks_interp.dtype, device=ks_interp.device)
     pot_ft_interp = interpolate(ks_torch, pot_ft_torch, torch.minimum(ks_interp, ks_torch[-1]))
-    pot_ft_aux = torch.empty(ks_interp.shape, dtype=torch.double, device=ks_interp.device)
+    pot_ft_aux = torch.empty(ks_interp.shape, dtype=ks_interp.dtype, device=ks_interp.device)
     pot_ft_aux[ks_interp == 0] = pot_ft_interp[ks_interp == 0]
-    pot_ft_aux[ks_interp != 0] = pot_ft_interp[ks_interp != 0] - 4 * np.pi * z / ks_interp[ks_interp != 0].pow(2)
+    pot_ft_aux[ks_interp != 0] = pot_ft_interp[ks_interp != 0] - 4 * pi * z / ks_interp[ks_interp != 0].square()
     return pot_ft_aux
 
 
@@ -132,9 +133,9 @@ def structure_factor(box_vecs, shape, cart_ion_coords):
     Returns:
       torch.Tensor: Exact structure factor
     """
-    kx, ky, kz, k2 = wavevecs(box_vecs, shape)
-    kr = torch.einsum('xyza, ia -> xyzi', torch.stack([kx, ky, kz], dim=-1), cart_ion_coords)
-    return torch.sum(torch.exp(-1j * kr), axis=3)
+    return torch.sum(torch.exp(-1j * torch.einsum('xyza, ia -> xyzi',
+                                                   wavevectors(box_vecs, shape),
+                                                   cart_ion_coords)), axis=3)
 
 
 def cardinal_b_spline_values(x, order):
@@ -174,9 +175,9 @@ def cardinal_b_spline_values(x, order):
     assert torch.all(x >= 0.0) and torch.all(x < 1.0), 'Requires 0 ≤ x < 1'
     assert order >= 2, 'Requires order n ≥ 2'
 
-    M1 = [[torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)]
+    M1 = [[torch.zeros(x.shape, dtype=x.dtype, device=x.device) for _ in range(order)]
           for _ in range(int(order / 2))]
-    M2 = [[torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)]
+    M2 = [[torch.zeros(x.shape, dtype=x.dtype, device=x.device) for _ in range(order)]
           for _ in range(int((order - 1) / 2))]
 
     M1[0][0][:] = x        # M2(x)   = x
@@ -194,7 +195,7 @@ def cardinal_b_spline_values(x, order):
         else:
             M1[j][0][:] = x / (n - 1) * M2[j - 1][0][:]
 
-    M_return = torch.zeros((order,) + x.shape, dtype=torch.double, device=x.device)
+    M_return = torch.zeros((order,) + x.shape, dtype=x.dtype, device=x.device)
 
     for i in range(order):
         if order % 2 == 0:
@@ -211,8 +212,8 @@ def exponential_spline_b(m, N, order):
     zero = torch.zeros(m.shape, dtype=torch.double, device=m.device)
     M = cardinal_b_spline_values(zero, order)
     i = torch.arange(0, order, dtype=torch.double, device=m.device).unsqueeze(1).expand((-1,) + m.shape)
-    b = torch.sum(M * torch.exp(1j * 2 * np.pi * m * (i - 1) / N), axis=0)
-    return torch.exp(1j * 2 * np.pi * m * (order - 1) / N) / b
+    b = torch.sum(M * torch.exp(1j * 2 * pi * m * (i - 1) / N), axis=0)
+    return torch.exp(1j * 2 * pi * m * (order - 1) / N) / b
 
 
 def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
@@ -247,21 +248,21 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
            'Fractional ionic coordinates don\'t all lie in [0,1)'
 
     # getting Q(l1, l2, l3)
-    Q = torch.zeros(shape, dtype=torch.double, device=box_vecs.device)
+    Q = torch.zeros(shape, dtype=box_vecs.dtype, device=box_vecs.device)
 
     u0 = frac_ion_coords[:, 0] * N0
     u1 = frac_ion_coords[:, 1] * N1
     u2 = frac_ion_coords[:, 2] * N2
 
-    floor0 = torch.floor(u0).to(torch.int64)
-    floor1 = torch.floor(u1).to(torch.int64)
-    floor2 = torch.floor(u2).to(torch.int64)
+    floor0 = torch.floor(u0).to(torch.long)
+    floor1 = torch.floor(u1).to(torch.long)
+    floor2 = torch.floor(u2).to(torch.long)
 
     M0 = cardinal_b_spline_values(u0 - floor0, order)
     M1 = cardinal_b_spline_values(u1 - floor1, order)
     M2 = cardinal_b_spline_values(u2 - floor2, order)
 
-    orders = torch.arange(0, order, dtype=torch.int64, device=box_vecs.device) \
+    orders = torch.arange(0, order, dtype=torch.long, device=box_vecs.device) \
              .unsqueeze(1).expand((-1, frac_ion_coords.shape[0]))
     l0 = (torch.fmod(orders - floor0, N0) + (orders < floor0) * N0)
     l1 = (torch.fmod(orders - floor1, N1) + (orders < floor1) * N1)
@@ -275,11 +276,11 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
     Q_ft = torch.fft.rfftn(Q)
 
     # getting B(m1, m2, m3) = b(m1) b(m2) b(m3)
-    n0 = torch.arange(0, Q_ft.shape[0], dtype=torch.double, device=box_vecs.device)
+    n0 = torch.arange(0, Q_ft.shape[0], dtype=box_vecs.dtype, device=box_vecs.device)
     b0 = exponential_spline_b(n0, N0, order)
-    n1 = torch.arange(0, Q_ft.shape[1], dtype=torch.double, device=box_vecs.device)
+    n1 = torch.arange(0, Q_ft.shape[1], dtype=box_vecs.dtype, device=box_vecs.device)
     b1 = exponential_spline_b(n1, N1, order)
-    n2 = torch.arange(0, Q_ft.shape[2], dtype=torch.double, device=box_vecs.device)
+    n2 = torch.arange(0, Q_ft.shape[2], dtype=box_vecs.dtype, device=box_vecs.device)
     b2 = exponential_spline_b(n2, N2, order)
     b0, b1, b2 = torch.meshgrid(b0, b1, b2, indexing='ij')
 
@@ -290,7 +291,7 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
 # -----------------------------------------------------------------------------------------------------------------------
 
 
-def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd):
+def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd, neighborlist=None):
     r"""
     Computes the ion-ion interaction energy using a real-space pairwise electrostatic summation
     in a uniform neutralizing background. Key parameters are :math:`R_c`, the cut-off radius, and
@@ -305,29 +306,39 @@ def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd):
       coords (torch.Tensor)   : Cartesian ionic coordinates
       charges (torch.Tensor)  : Charges of all ions in the simulation cell
       Rc, Rd  (float)         : Parameters for the electrtrostatic sum (see paper)
+      neighborlist (list)     : Optional neighborlist
 
     Returns:
       torch.Tensor: Ion-ion interaction energy
     """
     # get neighbor list
-    mapping, batch_mapping, shifts_idx = compute_neighborlist(
-        Rc, coords, box_vecs, torch.ones((3,), device=coords.device).bool(),
-        torch.zeros((coords.shape[0], ), dtype=torch.long, device=coords.device), self_interaction=False
-    )
+    if neighborlist is None:
+        mapping, batch_mapping, shifts_idx = compute_neighborlist(
+            Rc,
+            coords.detach().clone(),
+            box_vecs.detach().clone(),
+            torch.ones((3,), device=coords.device).bool(),
+            torch.zeros((coords.shape[0], ), dtype=torch.long, device=coords.device),
+            self_interaction=False
+        )
+    else:
+        mapping, shifts_idx = neighborlist
+
     # charge terms
     rho = torch.sum(charges) / torch.abs(torch.linalg.det(box_vecs))
     Zi = torch.index_select(charges, 0, mapping[0])  # (PQ,)
     Zj = torch.index_select(charges, 0, mapping[1])  # (PQ,)
     Qi = torch.scatter_add(charges, 0, mapping[0], Zj)  # (P,)
-    aux = (0.75 / np.pi) * Qi / rho  # (P,)
+    aux = (0.75 / pi) * Qi / rho  # (P,)
     Ra = aux.sign() * aux.abs().pow(1 / 3)  # (P,) | a.pow(n<1) gives nans for a<0
+    Ra2 = Ra.square()
     # pairwise distances
     r_ij = (torch.index_select(coords, 0, mapping[1]) + torch.matmul(shifts_idx, box_vecs)
             - torch.index_select(coords, 0, mapping[0])).norm(p=2, dim=1)  # (PQ,)
     # energy terms
     E_local = torch.sum(0.5 * Zi * Zj * torch.erfc(r_ij.div(Rd)).div(r_ij))  # sum over i,j
-    E_corr = torch.sum(- np.pi * charges * rho * Ra.square()
-                       + np.pi * charges * rho * (Ra.square() - 0.5 * Rd * Rd) * torch.erf(Ra.div(Rd))
-                       + np.sqrt(np.pi) * charges * rho * Ra * Rd * torch.exp(- Ra.square().div(Rd * Rd))
-                       - charges.square() / np.sqrt(np.pi) / Rd)  # sum over i
+    E_corr = torch.sum(- pi * charges * rho * Ra2
+                       + pi * charges * rho * (Ra2 - 0.5 * Rd * Rd) * torch.erf(Ra.div(Rd))
+                       + sqrt(pi) * charges * rho * Ra * Rd * torch.exp(- Ra2.div(Rd * Rd))
+                       - charges.square() / sqrt(pi) / Rd)  # sum over i
     return E_local + E_corr

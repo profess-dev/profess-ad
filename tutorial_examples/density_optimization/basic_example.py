@@ -20,7 +20,7 @@ system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional'
 
 # perform density optimization (by default n_verbose is False, but we want to
 # display the progress of the density optimization)
-system.optimize_density(ntol=1e-7, conv_target='dE', n_method='LBFGS', n_verbose=True)
+system.optimize_density(ntol=1e-8, conv_target='dE', n_method='LBFGS', n_verbose=True)
 
 # check the measures of convergence
 dEdchi_max = system.check_density_convergence('dEdchi')

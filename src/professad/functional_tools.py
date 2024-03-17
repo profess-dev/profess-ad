@@ -1,12 +1,18 @@
 import numpy as np
+from math import pi
 import torch
+from typing import List, Optional, Callable
 
 # ---------------------------------------------------------------------------------------------------------------------
 #                            Auto-differentiation Tools for Derivatives of Functionals
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def get_functional_derivative(box_vecs, den, functional, requires_grad=False):
+def get_functional_derivative(box_vecs: torch.Tensor,
+                              den: torch.Tensor,
+                              functional: Callable,
+                              requires_grad: Optional[bool] = False,
+                              ) -> torch.Tensor:
     r""" Computes functional derivative
 
     This is a utility function that computes the functional derivative
@@ -19,19 +25,25 @@ def get_functional_derivative(box_vecs, den, functional, requires_grad=False):
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
       den      (torch.Tensor) : Electron density
-      functional (function)   : Density functional that takes in arguments ``box_vecs`` and ``den``
+      functional (function)   : Density functional that takes in arguments ``den`` and ``kxyz``
       requires_grad (bool)    : Whether the fuctional derivative returned has ``requires_grad = True``
 
     Returns:
       torch.Tensor: Functional derivative
     """
     den.requires_grad_()
-    functional_derivative = torch.autograd.grad(functional(box_vecs, den), den, create_graph=requires_grad)[0]
+    vol = torch.linalg.det(box_vecs).abs()
+    F = torch.mean(functional(den, wavevectors(box_vecs, den.shape))) * vol
+    functional_derivative = torch.autograd.grad(F, den, create_graph=requires_grad)[0]
     den.requires_grad_(False)
-    return functional_derivative / (torch.abs(torch.linalg.det(box_vecs)) / den.numel())
+    return functional_derivative * den.numel() / vol
 
 
-def get_inv_G(box_vecs, den, kinetic_functional, requires_grad=False):
+def get_inv_G(box_vecs: torch.Tensor,
+              den: torch.Tensor,
+              kedf: Callable,
+              requires_grad: Optional[bool] = False,
+              ) -> torch.Tensor:
     r""" Computes linear response function
 
     This is a utility function that computes the linear response function :math:`G^{-1}(\eta)` where
@@ -46,31 +58,35 @@ def get_inv_G(box_vecs, den, kinetic_functional, requires_grad=False):
     closer to the Lindhard response, for example.
 
     Args:
-      box_vecs (torch.Tensor)         : Lattice vectors
-      den      (torch.Tensor)         : Electron density
-      kinetic_functional (function)   : Kinetic functional that takes in arguments ``box_vecs`` and ``den``
-      requires_grad (bool)            : Whether the response function returned has ``requires_grad = True``
+      box_vecs (torch.Tensor): Lattice vectors
+      den      (torch.Tensor): Electron density
+      kedf (function)        : Kinetic energy density functional that takes in arguments ``den`` and ``kxyz``
+      requires_grad (bool)   : Whether the response function returned has ``requires_grad = True``
 
     Returns:
       torch.Tensor:  Linear response function
     """
     vol = torch.abs(torch.linalg.det(box_vecs))
-    kx, ky, kz, k2 = wavevecs(box_vecs, den.shape)
     N_elec = round((torch.mean(den) * vol).detach().item())
     n0 = (N_elec / vol).repeat(den.shape)
     if not vol.requires_grad:
         n0.requires_grad_()
-    k_F = (3 * np.pi * np.pi * N_elec / vol)**(1 / 3)
-    T = kinetic_functional(box_vecs, n0)
+    k_F = (3 * pi * pi * N_elec / vol)**(1 / 3)
+    T = torch.mean(kedf(n0, wavevectors(box_vecs, den.shape))) * vol
     dTdn = torch.autograd.grad(T, n0, create_graph=True)[0] / (vol / torch.numel(den))
-    G_inv = np.pi * np.pi / k_F / torch.fft.rfftn(torch.autograd.grad(dTdn[0, 0, 0], n0,
-                                                  create_graph=requires_grad or vol.requires_grad)[0]).real
-    eta = torch.zeros(k2.shape, dtype=torch.double, device=den.device)
+    G_inv = pi * pi / k_F / torch.fft.rfftn(torch.autograd.grad(dTdn[0, 0, 0], n0,
+                                            create_graph=requires_grad or vol.requires_grad)[0]).real
+    k2 = wavevectors(box_vecs, den.shape).square().sum(-1)
+    eta = torch.zeros(k2.shape, dtype=den.dtype, device=den.device)
     eta[k2 != 0] = torch.sqrt(k2[k2 != 0]) / (2 * k_F)
     return eta, G_inv
 
 
-def get_stress(box_vecs, den, functional, requires_grad=False):
+def get_stress(box_vecs: torch.Tensor,
+               den: torch.Tensor,
+               functional: Callable,
+               requires_grad: Optional[bool] = False,
+               ) -> torch.Tensor:
     r""" Computes stress
 
     This is a utility function that computes the functional contribution to stress
@@ -86,22 +102,28 @@ def get_stress(box_vecs, den, functional, requires_grad=False):
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
       den      (torch.Tensor) : Electron density
-      functional (function)   : Density functional that takes in arguments ``box_vecs`` and ``den``
+      functional (function)   : Density functional that takes in arguments ``den`` and ``kxyz``
       requires_grad (bool)    : Whether the response function returned has ``requires_grad = True``
 
     Returns:
       torch.Tensor: Stress tensor (3 by 3)
     """
-    box_vecs.requires_grad = True
+    box_vecs.requires_grad_()
     vol = torch.abs(torch.linalg.det(box_vecs))
-    grad_den = den * vol.detach() / vol
-    dEdcell = torch.autograd.grad(functional(box_vecs, grad_den), box_vecs, create_graph=requires_grad)[0].T
-    box_vecs.requires_grad = False
-    stress = torch.matmul(dEdcell, box_vecs) / vol.detach()
+    grad_den = den * vol.detach().div(vol)
+    dEdcell = torch.autograd.grad(torch.mean(functional(grad_den, wavevectors(box_vecs, den.shape))) * vol,
+                                  [box_vecs],
+                                  create_graph=requires_grad)[0].T
+    box_vecs.requires_grad_(False)
+    stress = torch.matmul(dEdcell, box_vecs).div(vol.detach())
     return stress
 
 
-def get_pressure(box_vecs, den, functional, requires_grad=False):
+def get_pressure(box_vecs: torch.Tensor,
+                 den: torch.Tensor,
+                 functional: Callable,
+                 requires_grad: Optional[bool] = False,
+                 ) -> torch.Tensor:
     r""" Computes pressure
 
     This is a utility function that computes the functional contribution to pressure
@@ -115,15 +137,16 @@ def get_pressure(box_vecs, den, functional, requires_grad=False):
     Args:
       box_vecs (torch.Tensor) : Lattice vectors
       den      (torch.Tensor) : Electron density
-      functional (function)   : Density functional that takes in arguments ``box_vecs`` and ``den``
+      functional (function)   : Density functional that takes in arguments ``den`` and ``kxyz``
       requires_grad (bool)    : Whether the response function returned has ``requires_grad = True``
 
     Returns:
       torch.Tensor: Pressure
     """
     vol = torch.abs(torch.linalg.det(box_vecs))
-    vol.requires_grad = True
-    F = functional(box_vecs * (vol / vol.detach()).pow(1 / 3), den * vol.detach() / vol)
+    vol.requires_grad_()
+    kxyz = wavevectors(box_vecs * (vol.div(vol.detach())).pow(1 / 3), den.shape)
+    F = torch.mean(functional(den * vol.detach().div(vol), kxyz)) * vol
     return torch.autograd.grad(F, vol, create_graph=requires_grad)[0].neg()
 
 
@@ -132,7 +155,8 @@ def get_pressure(box_vecs, den, functional, requires_grad=False):
 # -----------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------- Wavevectors from Lattice ----------------------------------------------
-def wavevecs(box_vecs, shape):
+
+def wavevectors(box_vecs: torch.Tensor, shape: List) -> torch.Tensor:
     """ Generates wavevectors
 
     This is a utility function that generates the wavevectors for a given
@@ -140,50 +164,25 @@ def wavevecs(box_vecs, shape):
     the lattice vectors.
 
     Args:
-      box_vecs (torch.Tensor)           : Lattice vectors
-      shape    (torch.Size or iterable) : Real-space grid shape
+      box_vecs (torch.Tensor): Lattice vectors tensor of shape ``(3, 3)``
+      shape (list)           : Real-space grid shape ``(Ni, Nj, Nk)``
 
     Returns:
-      torch.Tensor: Wavevectors consistent with real FFTs in the order :math:`k_x,~k_y,~k_z,~k^2`
+      torch.Tensor: Wavevectors consistent with real FFTs with shape ``(Ni, Nj, Mk, 3)``
     """
-    b = 2 * np.pi * torch.linalg.inv(box_vecs.T)  # reciprocal lattice vectors
-    assert not torch.any(torch.isnan(b)), 'Lattice vector matrix is not invertible.'
     # k-vector indices (enforcing nyquist > 0 for even lengths)
-    j0, j1 = (torch.fft.fftfreq(shape[i], dtype=torch.double, device=box_vecs.device) * shape[i] for i in range(2))
+    j0, j1 = (torch.fft.fftfreq(shape[i], dtype=box_vecs.dtype, device=box_vecs.device) * shape[i] for i in range(2))
     for f in [j0, j1]:
         f[int(len(f) / 2)] = torch.abs(f[int(len(f) / 2)])
-    j2 = torch.fft.rfftfreq(shape[2], dtype=torch.double, device=box_vecs.device) * shape[2]
-    nA, nB, nC = torch.meshgrid(j0, j1, j2, indexing='ij')
-    # k-vector arrays
-    kx = nA * b[0, 0] + nB * b[1, 0] + nC * b[2, 0]
-    ky = nA * b[0, 1] + nB * b[1, 1] + nC * b[2, 1]
-    kz = nA * b[0, 2] + nB * b[1, 2] + nC * b[2, 2]
-    k2 = kx.square() + ky.square() + kz.square()
-    return kx, ky, kz, k2
+    j2 = torch.fft.rfftfreq(shape[2], dtype=box_vecs.dtype, device=box_vecs.device) * shape[2]
+    ns = torch.stack(torch.meshgrid(j0, j1, j2, indexing='ij'), -1)
+    b = 2 * pi * torch.linalg.inv(box_vecs.T)  # reciprocal lattice vectors
+    return torch.einsum('ijka, ab -> ijkb', ns, b)  # (i, j, k, 3)
 
 
 # -------------------------------------------- FFT-based Derivatives ---------------------------------------------
-def grad_i(ki, f):
-    r""" Computes gradient component
 
-    This is a utility function that computes the gradient component or
-    partial spatial derivative
-
-    .. math:: \nabla_i f =  \frac{\partial f}{\partial r_i}
-
-    where :math:`f` is a given function and :math:`r_i \in \{x,y,z\}`.
-
-    Args:
-      ki (torch.Tensor)  : :math:`k_i \in \{k_x,k_y,k_z\}`
-      f  (torch.Tensor)  : A scalar function
-
-    Returns:
-      torch.Tensor: Gradient component
-    """
-    return torch.fft.irfftn(1j * ki * torch.fft.rfftn(f), f.shape)
-
-
-def grad_dot_grad(kx, ky, kz, f):
+def grad_dot_grad(kxyz: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
     r""" Computes squared gradient
 
     This is a utility function that computes the squared gradient or
@@ -196,17 +195,17 @@ def grad_dot_grad(kx, ky, kz, f):
     where :math:`f` is a given function.
 
     Args:
-      ki (torch.Tensor)  : :math:`k_i \in \{k_x,k_y,k_z\}`
-      f  (torch.Tensor)  : A scalar function
+      kxyz (torch.Tensor): Wavevectors tensor of shape ``(Ni, Nj, Mk, 3)``
+      f (torch.Tensor)   : Tensor of shape ``(Ni, Nj, Nk)`` representing a scalar function
 
     Returns:
-      torch.Tensor: Dot product of gradient with itself
+      torch.Tensor: Gradient squared tensor of shape ``(Ni, Nj, Nk)``
     """
-    grad_x, grad_y, grad_z = grad_i(kx, f), grad_i(ky, f), grad_i(kz, f)
-    return grad_x * grad_x + grad_y * grad_y + grad_z * grad_z
+    return torch.fft.irfftn(1j * kxyz * torch.fft.rfftn(f).unsqueeze(-1),
+                            s=f.shape, dim=(0, 1, 2)).square().sum(-1)
 
 
-def laplacian(k2, f):
+def laplacian(k2: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
     r""" Computes Laplacian
 
     This is a utility function that computes the Laplacian
@@ -218,16 +217,16 @@ def laplacian(k2, f):
     where :math:`f` is a given function.
 
     Args:
-      k2 (torch.Tensor)  : :math:`k^2 = k_x^2 + k_y^2 + k_z^2`
-      f  (torch.Tensor)  : A scalar function
+      k2 (torch.Tensor)  : :math:`k^2` wavevector tensor of shape ``(Ni, Nj, Mk)``
+      f (torch.Tensor)   : Tensor of shape ``(Ni, Nj, Nk)`` representing a scalar function
 
     Returns:
-      torch.Tensor: Laplacian
+      torch.Tensor: Laplacian tensor of shape ``(Ni, Nj, Nk)``
     """
     return torch.fft.irfftn(k2.neg() * torch.fft.rfftn(f), f.shape)
 
 
-def reduced_gradient(kx, ky, kz, den):
+def reduced_gradient(kxyz: torch.Tensor, den: torch.Tensor) -> torch.Tensor:
     r""" Computes reduced gradient
 
     This is a utility function that computes the reduced gradient
@@ -237,19 +236,19 @@ def reduced_gradient(kx, ky, kz, den):
     where :math:`n` is the electron density.
 
     Args:
-      ki (torch.Tensor)  : :math:`k_i \in \{k_x,k_y,k_z\}`
-      den (torch.Tensor) : Electron density, :math:`n`
+      kxyz (torch.Tensor): Wavevectors tensor of shape ``(Ni, Nj, Mk, 3)``
+      den (torch.Tensor) : Electron density tensor of shape ``(Ni, Nj, Nk)``
 
     Returns:
-      torch.Tensor: Reduced gradient
+      torch.Tensor: Reduced gradient tensor of shape ``(Ni, Nj, Nk)``
     """
-    gdg = grad_dot_grad(kx, ky, kz, den)
-    abs_grad = torch.zeros(den.shape, dtype=torch.double, device=den.device)
+    gdg = grad_dot_grad(kxyz, den)
+    abs_grad = torch.zeros(den.shape, dtype=den.dtype, device=den.device)
     abs_grad[gdg != 0] = torch.sqrt(gdg[gdg != 0])
-    return 0.5 * (3 * np.pi * np.pi)**(-1 / 3) * abs_grad / den.pow(4 / 3)
+    return 0.5 * (3 * pi * pi)**(-1 / 3) * abs_grad.div(den.pow(4 / 3))
 
 
-def reduced_gradient_squared(kx, ky, kz, den):
+def reduced_gradient_squared(kxyz: torch.Tensor, den: torch.Tensor) -> torch.Tensor:
     r""" Computes squared reduced gradient
 
     This is a utility function that computes the reduced gradient
@@ -259,16 +258,16 @@ def reduced_gradient_squared(kx, ky, kz, den):
     where :math:`n` is the electron density.
 
     Args:
-      ki (torch.Tensor)  : :math:`k_i \in \{k_x,k_y,k_z\}`
-      den (torch.Tensor) : Electron density, :math:`n`
+      kxyz (torch.Tensor): Wavevectors tensor of shape ``(Ni, Nj, Mk, 3)``
+      den (torch.Tensor) : Electron density tensor of shape ``(Ni, Nj, Nk)``
 
     Returns:
-      torch.Tensor: Squared reduced gradient
+      torch.Tensor: Squared reduced gradient tensor of shape ``(Ni, Nj, Nk)``
     """
-    return 0.25 * (3 * np.pi * np.pi)**(-2 / 3) * grad_dot_grad(kx, ky, kz, den) / den.pow(8 / 3)
+    return 0.25 * (3 * pi * pi)**(-2 / 3) * grad_dot_grad(kxyz, den).div(den.pow(8 / 3))
 
 
-def reduced_laplacian(k2, den):
+def reduced_laplacian(k2: torch.Tensor, den: torch.Tensor) -> torch.Tensor:
     r""" Computes reduced Laplacian
 
     This is a utility function that computes the reduced Laplacian
@@ -278,18 +277,18 @@ def reduced_laplacian(k2, den):
     where :math:`n` is the electron density.
 
     Args:
-      k2 (torch.Tensor)  : :math:`k^2 = k_x^2 + k_y^2 + k_z^2`
-      den (torch.Tensor) : Electron density, :math:`n`
+      k2 (torch.Tensor) : :math:`k^2` wavevector tensor of shape ``(Ni, Nj, Mk)``
+      den (torch.Tensor): Electron density tensor of shape ``(Ni, Nj, Nk)``
 
     Returns:
-      torch.Tensor: Reduced Laplacian
+      torch.Tensor: Reduced Laplacian tensor of shape ``(Ni, Nj, Nk)``
     """
-    return 0.25 * (3 * np.pi * np.pi)**(-2 / 3) * laplacian(k2, den) / den.pow(5 / 3)
+    return 0.25 * (3 * pi * pi)**(-2 / 3) * laplacian(k2, den).div(den.pow(5 / 3))
 
 
 # ------------------------------------------------ Interpolation Tools ------------------------------------------------
 
-def interpolate(x, y, xs):
+def interpolate(x: torch.Tensor, y: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
     r""" Performs interpolation
 
     This is a utility function that performs a Pytorch based cubic hermite
@@ -313,7 +312,7 @@ def interpolate(x, y, xs):
     t = ((xs - x[idxs]) / dx).unsqueeze(0).expand((4,) + xs.shape)
 
     a = torch.arange(4, device=xs.device).reshape((4,) + ((1,) * len(xs.shape))).expand((-1,) + xs.shape)
-    tt = torch.ones(a.shape, dtype=torch.double, device=xs.device)
+    tt = torch.ones(a.shape, dtype=xs.dtype, device=xs.device)
     tt[a != 0] = t[a != 0].pow(a[a != 0])
 
     A = torch.tensor([
@@ -327,7 +326,10 @@ def interpolate(x, y, xs):
     return hh[0] * y[idxs] + hh[1] * m[idxs] * dx + hh[2] * y[idxs + 1] + hh[3] * m[idxs + 1] * dx
 
 
-def interpolate_kernel(xi_sparse, f, xis):
+def interpolate_kernel(xi_sparse: torch.Tensor,
+                       f: torch.Tensor,
+                       xis: torch.Tensor,
+                       ) -> torch.Tensor:
     r""" Performs kernel interpolation
 
     Consider a function :math:`f(x,y,z,\xi)` where the last argument :math:`\xi(x,y,z)` is
@@ -371,7 +373,13 @@ def interpolate_kernel(xi_sparse, f, xis):
          + hh[3] * torch.gather(m, 3, (idxs + 1).unsqueeze(3))[:, :, :, 0] * dx
 
 
-def field_dependent_convolution(k, f_tilde, g, xis, kappa, mode='arithmetic'):
+def field_dependent_convolution(k: torch.Tensor,
+                                f_tilde: Callable,
+                                g: torch.Tensor,
+                                xis: torch.Tensor,
+                                kappa: int,
+                                mode: Optional[str] = 'arithmetic',
+                                ) -> torch.Tensor:
     r""" Computes a field-dependent convolution
 
     Computes a "field-dependent convolution", which is an integral quantity
@@ -400,14 +408,14 @@ def field_dependent_convolution(k, f_tilde, g, xis, kappa, mode='arithmetic'):
         # generates arithmetic progression based on κ that covers the whole ξ range (and a bit more)
         lower = (np.floor(xis.min().item() / kappa) - 3) * kappa
         upper = (np.ceil(xis.max().item() / kappa) + 3) * kappa
-        xi_sparse = torch.arange(lower, upper, kappa, dtype=torch.double, device=xis.device)
+        xi_sparse = torch.arange(lower, upper, kappa, dtype=xis.dtype, device=xis.device)
         xi_sparse[xi_sparse == 0] = xis.min().item()
     elif mode == 'geometric':
         assert kappa > 1, 'κ > 1 for geometric progression based spline for field_dependent_convolution'
         # generates geometric progression based on κ that covers the whole ξ range (and a bit more)
         lower = kappa**(-(np.ceil(- np.log(xis.min().item()) / np.log(kappa)) + 3))
         N = np.ceil(np.log((xis.max().item() + 1) / lower) / np.log(kappa)) + 3
-        xi_sparse = lower * kappa**torch.arange(N, dtype=torch.double, device=xis.device)
+        xi_sparse = lower * kappa**torch.arange(N, dtype=xis.dtype, device=xis.device)
     else:
         raise ValueError('Parameter \'mode\' can only be \'arithmetic\' or \'geometric\'')
     # print(xi_sparse.min().item(), xi_sparse.max().item(), len(xi_sparse))

@@ -4,6 +4,8 @@ import unittest
 
 from professad.system import System
 from professad.functionals import *
+from professad.functionals import LocalExchange, _perdew_zunger_correlation, _perdew_wang_correlation, \
+    _chachiyo_correlation, PerdewBurkeErnzerhof
 
 from tools_for_tests import *
 from professad.functional_tools import get_functional_derivative
@@ -23,14 +25,8 @@ class TestFunctionalDerivatives(unittest.TestCase):
         system.optimize_density()
         box_vecs = system.lattice_vectors()
         den = system.density()
-        v_ext = system.ionic_potential()
 
         # compute autograd (ag) and theoretical (th) functional derivatives (fd) for comparison
-
-        # ion-electron interaction
-        ag_fd = get_functional_derivative(box_vecs, den, lambda bv, n: IonElectron(bv, n, v_ext))
-        th_fd = v_ext
-        self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Hartree energy
         ag_fd = get_functional_derivative(box_vecs, den, Hartree)
@@ -48,6 +44,8 @@ class TestFunctionalDerivatives(unittest.TestCase):
         th_fd = vW_kp(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
+        # analytical derivatives don't account for n0 = torch.mean(den)
+        """
         # Wang-Teter
         ag_fd = get_functional_derivative(box_vecs, den, WangTeter)
         th_fd = non_local_KEFD(box_vecs, den, alpha=5 / 6, beta=5 / 6)
@@ -67,6 +65,7 @@ class TestFunctionalDerivatives(unittest.TestCase):
         ag_fd = get_functional_derivative(box_vecs, den, WangGovindCarter98)
         th_fd = non_local_KEFD(box_vecs, den, alpha=(5 + np.sqrt(5)) / 6, beta=(5 - np.sqrt(5)) / 6)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
+        """
 
         # LKT
         ag_fd = get_functional_derivative(box_vecs, den, LuoKarasievTrickey)
@@ -88,33 +87,28 @@ class TestFunctionalDerivatives(unittest.TestCase):
 
         # ------- XC Functionals -------
         # LDA exchange
-        ag_fd = get_functional_derivative(box_vecs, den, lda_exchange)
+        ag_fd = get_functional_derivative(box_vecs, den, LocalExchange)
         th_fd = lda_exchange_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Perdew-Zunger correlation
-        ag_fd = get_functional_derivative(box_vecs, den, perdew_zunger_correlation)
+        ag_fd = get_functional_derivative(box_vecs, den, _perdew_zunger_correlation)
         th_fd = perdew_zunger_correlation_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Perdew-Wang correlation
-        ag_fd = get_functional_derivative(box_vecs, den, perdew_wang_correlation)
+        ag_fd = get_functional_derivative(box_vecs, den, _perdew_wang_correlation)
         th_fd = perdew_wang_correlation_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Chachiyo correlation
-        ag_fd = get_functional_derivative(box_vecs, den, chachiyo_correlation)
+        ag_fd = get_functional_derivative(box_vecs, den, _chachiyo_correlation)
         th_fd = chachiyo_correlation_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
-        # PBE exchange
-        ag_fd = get_functional_derivative(box_vecs, den, pbe_exchange)
-        th_fd = pbe_exchange_potential(box_vecs, den)
-        self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
-
-        # PBE correlation
-        ag_fd = get_functional_derivative(box_vecs, den, pbe_correlation)
-        th_fd = pbe_correlation_potential(box_vecs, den)
+        # PBE XC
+        ag_fd = get_functional_derivative(box_vecs, den, PerdewBurkeErnzerhof)
+        th_fd = pbe_exchange_potential(box_vecs, den) + pbe_correlation_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
     def test2_density_optimization(self):

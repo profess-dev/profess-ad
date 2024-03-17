@@ -21,7 +21,7 @@ class TestDenOpt(unittest.TestCase):
         ions = [['H', 'potentials/H.coulomb-kcut-15.recpot', torch.tensor([[0.5, 0.5, 0.5]]).double()]]
         terms = [IonElectron, Weizsaecker]
         system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
-        system.set_electron_number(1)
+        system.N_elec = 1
 
         system.optimize_density(ntol=1e-4)
         self.assertAlmostEqual(system.energy('Ha'), -0.5, places=2)
@@ -68,8 +68,8 @@ class TestDenOpt(unittest.TestCase):
         dEdn = system.functional_derivative('density')
         chi = torch.sqrt(system.density())
         N_tilde = torch.mean(chi.pow(2)) * system.volume()
-        dEdchi_from_dEdn = (system.electron_count() / N_tilde) * 2 * chi * \
-                           (dEdn - torch.mean(dEdn * system.density()) * system.volume() / system.electron_count())
+        dEdchi_from_dEdn = (system.N_elec / N_tilde) * 2 * chi * \
+                           (dEdn - torch.mean(dEdn * system.density()) * system.volume() / system.N_elec)
 
         self.assertTrue(np.allclose(dEdchi, torch.max(torch.abs(dEdchi_from_dEdn)).item(), rtol=1e-10))
         print('Density optimization works as expected.')

@@ -3,7 +3,7 @@ import torch
 
 from professad.functionals import G_inv_lindhard, WangTeter, LuoKarasievTrickey, \
     PauliGaussian, Weizsaecker, ThomasFermi
-from professad.functional_tools import get_inv_G
+from professad.functional_tools import wavevectors, get_inv_G
 
 shape = (61, 61, 61)
 box_vecs = 8 * torch.eye(3, dtype=torch.double)
@@ -12,7 +12,7 @@ den = torch.ones(shape, dtype=torch.double)
 plt.rc('font', family='serif')
 plt.subplots(figsize=(5, 4))
 
-eta, lind = G_inv_lindhard(box_vecs, den)
+eta, lind = G_inv_lindhard(den, wavevectors(box_vecs, den.shape))
 plt.plot(eta[0, 0, :], lind[0, 0, :], '-k')
 
 eta, F = get_inv_G(box_vecs, den, WangTeter)

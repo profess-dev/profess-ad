@@ -5,7 +5,7 @@ import torch
 from professad.system import System
 from professad.functionals import KineticFunctional, Weizsaecker, IonIon, IonElectron, Hartree, \
     WangTeter, PerdewBurkeErnzerhof
-from professad.functional_tools import get_functional_derivative, wavevecs, reduced_gradient, reduced_laplacian
+from professad.functional_tools import get_functional_derivative, wavevectors, reduced_gradient, reduced_laplacian
 from professad.crystal_tools import get_cell
 
 
@@ -29,9 +29,9 @@ class NeuralNetworkFunctional(KineticFunctional):
 
     def forward(self, box_vecs, den):
         # getting descriptors
-        kx, ky, kz, k2 = wavevecs(box_vecs, den.shape)
-        s = reduced_gradient(kx, ky, kz, den)
-        q = reduced_laplacian(k2, den)
+        kxyz = wavevectors(box_vecs, den.shape)
+        s = reduced_gradient(kxyz, den)
+        q = reduced_laplacian(kxyz.square().sum(-1), den)
 
         # compute Pauli enhancement factor
         Fenh = torch.squeeze(self.nn(torch.cat((s.unsqueeze(-1), q.unsqueeze(-1)), dim=-1)))

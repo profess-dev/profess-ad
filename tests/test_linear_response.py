@@ -3,7 +3,7 @@ import torch
 import unittest
 
 from professad.functionals import G_inv_lindhard, WangTeter, G_inv_gap, KGAP, YukawaGGA
-from professad.functional_tools import get_inv_G
+from professad.functional_tools import wavevectors, get_inv_G
 
 
 class TestLinearResponse(unittest.TestCase):
@@ -11,17 +11,18 @@ class TestLinearResponse(unittest.TestCase):
     def test_linear_response(self):
         shape = (61, 61, 61)
         box_vecs = 8 * torch.eye(3, dtype=torch.double)
+        kxyz = wavevectors(box_vecs, shape)
         den = torch.ones(shape, dtype=torch.double)
 
         # Wang-Teter
-        eta, G_inv_lind = G_inv_lindhard(box_vecs, den)
+        eta, G_inv_lind = G_inv_lindhard(den, kxyz)
         eta, G_inv_WT = get_inv_G(box_vecs, den, WangTeter)
         self.assertTrue(np.allclose(G_inv_WT, G_inv_lind, atol=1e-10))
 
         # KGAP
         E_gap = 1.17
         eta, G_inv_KGAP = get_inv_G(box_vecs, den, lambda bv, n: KGAP(bv, n, E_gap))
-        eta, G_inv_jgap = G_inv_gap(box_vecs, den, E_gap)
+        eta, G_inv_jgap = G_inv_gap(den, kxyz, E_gap)
         self.assertTrue(np.allclose(G_inv_KGAP[eta != 0], G_inv_jgap[eta != 0], atol=1e-10))
 
         # Yukawa GGA

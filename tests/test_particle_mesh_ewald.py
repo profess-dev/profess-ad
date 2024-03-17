@@ -42,7 +42,7 @@ class TestPME(unittest.TestCase):
                     continue
                 M = cardinal_b_spline_values(torch.as_tensor([x[i] - k - np.floor(x[i] - k)]), order)
                 s[i] += M[int(np.floor(x[i] - k))] * np.exp(1j * 2 * np.pi * m / N * k)
-        s *= exponential_spline_b(torch.as_tensor([m]), N, order).numpy()
+        s = s * exponential_spline_b(torch.as_tensor([m]), N, order).numpy()
         self.assertTrue(np.allclose(f, s))
 
     def test3_structure_factors(self):

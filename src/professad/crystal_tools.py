@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from math import sqrt
+from typing import Optional
 
 # --------------------------------------------------------------------
 # Helper script containing functions that provide the lattice vectors
@@ -8,7 +10,11 @@ import torch
 # --------------------------------------------------------------------
 
 
-def get_cell(crystal, vol_per_atom, c_over_a=np.sqrt(8 / 3), coord_type='fractional'):
+def get_cell(crystal: str,
+             vol_per_atom: float,
+             c_over_a: Optional[float] = sqrt(8 / 3),
+             coord_type: Optional[str] = 'fractional',
+             ):
     """ Crystal utility function
 
     This is a convenience function that returns the lattice vectors and ionic coordinates
@@ -33,30 +39,32 @@ def get_cell(crystal, vol_per_atom, c_over_a=np.sqrt(8 / 3), coord_type='fractio
     Returns:
       torch.Tensor, torch.Tensor: Lattice vectors, Ionic coordinates
     """
-    if crystal == 'sc':
-        lattice_vectors, frac_ion_coords = simple_cubic(vol_per_atom)
-    elif crystal == 'bcc':
-        lattice_vectors, frac_ion_coords = body_centered_cubic(vol_per_atom, 'primitive')
-    elif crystal == 'bcc-c':
-        lattice_vectors, frac_ion_coords = body_centered_cubic(vol_per_atom, 'conventional')
-    elif crystal == 'fcc':
-        lattice_vectors, frac_ion_coords = face_centered_cubic(vol_per_atom, 'primitive')
-    elif crystal == 'fcc-c':
-        lattice_vectors, frac_ion_coords = face_centered_cubic(vol_per_atom, 'conventional')
-    elif crystal == 'dc':
-        lattice_vectors, frac_ion_coords = diamond_cubic(vol_per_atom, 'primitive')
-    elif crystal == 'dc-c':
-        lattice_vectors, frac_ion_coords = diamond_cubic(vol_per_atom, 'conventional')
-    elif crystal == 'hcp':
-        lattice_vectors, frac_ion_coords = hexagonal_close_packed(vol_per_atom, c_over_a)
-    else:
-        raise ValueError('\'crystal\' argument \'' + crystal + '\' not recognized')
-    if coord_type == 'fractional':
-        return lattice_vectors, frac_ion_coords
-    elif coord_type == 'cartesian':
-        return lattice_vectors, frac_ion_coords @ lattice_vectors
-    else:
-        raise ValueError('Only \'fractional\' or \'cartesian\' allowed for argument \'coord_type\'.')
+    match crystal:
+        case 'sc':
+            lattice_vectors, frac_ion_coords = simple_cubic(vol_per_atom)
+        case 'bcc':
+            lattice_vectors, frac_ion_coords = body_centered_cubic(vol_per_atom, 'primitive')
+        case 'bcc-c':
+            lattice_vectors, frac_ion_coords = body_centered_cubic(vol_per_atom, 'conventional')
+        case 'fcc':
+            lattice_vectors, frac_ion_coords = face_centered_cubic(vol_per_atom, 'primitive')
+        case 'fcc-c':
+            lattice_vectors, frac_ion_coords = face_centered_cubic(vol_per_atom, 'conventional')
+        case 'dc':
+            lattice_vectors, frac_ion_coords = diamond_cubic(vol_per_atom, 'primitive')
+        case 'dc-c':
+            lattice_vectors, frac_ion_coords = diamond_cubic(vol_per_atom, 'conventional')
+        case 'hcp':
+            lattice_vectors, frac_ion_coords = hexagonal_close_packed(vol_per_atom, c_over_a)
+        case _:
+            raise ValueError('\'crystal\' argument \'' + crystal + '\' not recognized')
+    match coord_type:
+        case 'fractional':
+            return lattice_vectors, frac_ion_coords
+        case 'cartesian':
+            return lattice_vectors, frac_ion_coords @ lattice_vectors
+        case _:
+            raise ValueError('Only \'fractional\' or \'cartesian\' allowed for argument \'coord_type\'.')
 
 
 def simple_cubic(vol_per_atom):

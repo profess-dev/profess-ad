@@ -28,7 +28,7 @@ ions = [['-', 'al.gga.recpot', torch.tensor([[0.5, 0.5, 0.5]]).double()]]
 system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
 
 # as we have used an arbitrary recpot file, we need to set the electron number explicitly
-system.set_electron_number(1)
+system.N_elec = 1
 
 # QHO quadratic potential
 k = 10

@@ -1,8 +1,13 @@
 Exchange-Correlation (XC) Functionals
 =====================================
 
-Local Density Approximation (LDA) XC Functionals
-------------------------------------------------
+Local Density Approximation (LDA)
+---------------------------------
+
+Local Exchange Functional
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: functionals.LocalExchange
 
 Perdew-Zunger (PZ) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -20,8 +25,8 @@ Chachiyo Functional
 .. autofunction:: functionals.Chachiyo
 
 
-Generelized Gradient Approximation (GGA) XC Functionals
--------------------------------------------------------
+Generelized Gradient Approximation (GGA)
+----------------------------------------
 
 Perdew-Burke-Ernzerhof (PBE) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

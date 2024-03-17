@@ -6,6 +6,7 @@ from professad.functionals import IonIon, IonElectron, Hartree, WangTeterStyleFu
 
 # use GPU if available else use CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print('device = {}'.format(device))
 
 params = torch.tensor([24 / System.A_per_b**3, 1.5], dtype=torch.double, device=device).requires_grad_()
 print('Initial Guess: Volume per atom = {:.5f} Å³, c/a = {:.5f}'

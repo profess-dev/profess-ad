@@ -3,12 +3,14 @@ from professad.functionals import IonIon, IonElectron, Hartree, XuWangMa, Perdew
 from professad.crystal_tools import get_cell
 from professad.elastic_tools import shear_average, poissons_ratio
 
+
 # define system
 terms = [IonIon, IonElectron, Hartree, XuWangMa, PerdewBurkeErnzerhof]
 box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.52, coord_type='fractional')
 ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 shape = System.ecut2shape(2000, box_vecs)
 system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional')
+
 
 # perform Birch-Murnaghan fit to determine equilibrium volume and bulk modulus
 params, err = system.eos_fit(f=0.05, N=11, ntol=1e-10, eos='bm')

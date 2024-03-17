@@ -13,8 +13,8 @@ the :ref:`Thomas-Fermi <tf>` kinetic energy density and :math:`s` is the :ref:`r
 
   def LuoKarasievTrickey(box_vecs, den): 
       TF_ked = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * den.pow(5 / 3)
-      kx, ky, kz, k2 = wavevecs(box_vecs, den.shape)
-      s = reduced_gradient(kx, ky, kz, den)
+      kxyz = wavevectors(box_vecs, den.shape)
+      s = reduced_gradient(kxyz, den)
       # clamp to avoid s from growing too large, which can cause F_pauli -> 0 and get nan derivatives
       F_pauli = 1 / torch.cosh(1.3 * s.clamp(max=100))
       pauli_T = torch.mean(TF_ked * F_pauli) * torch.abs(torch.linalg.det(box_vecs))
@@ -30,8 +30,8 @@ the more widely known :ref:`Hartree functional <hart>` given by
 also involves convolutions, and hence benefits from an FFT-based implementation motivated by the convolution theorem. ::
 
   def Hartree(box_vecs, den):
+      k2 = wavevectors(box_vecs, den.shape).square().sum(-1)
       den_ft = torch.fft.rfftn(den)
-      kx, ky, kz, k2 = wavevecs(box_vecs, den.shape)
       coloumb_ft = torch.zeros(k2.shape, dtype=torch.double, device=den.device)
       # set k=0 component to zero. appropriate if the density integrates to
       # zero over the box (e.g. if neutralized by a uniform background charge).
@@ -46,12 +46,8 @@ Wavevector Tools
 Wavevectors
 ^^^^^^^^^^^
 
-.. autofunction:: functional_tools.wavevecs
+.. autofunction:: functional_tools.wavevectors
 
-Gradient
-^^^^^^^^
-
-.. autofunction:: functional_tools.grad_i
 
 Gradient Squared
 ^^^^^^^^^^^^^^^^

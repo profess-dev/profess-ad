@@ -31,9 +31,9 @@ Semi-local Kinetic Energy Functionals
 
 Semi-local functionals generally take the form
 
-.. math:: T_\text{S}[n] = T_\text{vW}[n] +  \int d^3\mathbf{r} ~ F_\theta[n](\mathbf{r}) \tau_\text{TF}(\mathbf{r}) 
+.. math:: \tau_\text{S}(\mathbf{r}) = \tau_\text{vW}(\mathbf{r}) + F_\theta[n](\mathbf{r}) \tau_\text{TF}(\mathbf{r}) 
 
-where :math:`T_\text{vW}[n]` is the von Weizsaecker kinetic energy functional,
+where :math:`\tau_\text{vW}` is the von Weizsaecker kinetic energy density,
 :math:`\tau_\text{TF}(\mathbf{r})` is the Thomas-Fermi kinetic energy density and 
 :math:`F_\theta[n](\mathbf{r})` is the Pauli enhancement factor to be approximated.
 

@@ -4,6 +4,8 @@ import unittest
 
 from professad.system import System
 from professad.functionals import *
+from professad.functionals import LocalExchange, _perdew_zunger_correlation, _perdew_wang_correlation, \
+    _chachiyo_correlation, PerdewBurkeErnzerhof
 
 from tools_for_tests import *
 from professad.functional_tools import get_stress, get_pressure
@@ -57,6 +59,7 @@ class TestStress(unittest.TestCase):
         ag_stress = get_stress(box_vecs, den, WTexp.forward)
         th_stress = pauli_stabilized_stress(box_vecs, den, alpha=5 / 6, beta=5 / 6,
                                             f=lambda x: torch.exp(x), fprime=lambda x: torch.exp(x))
+        #print(ag_stress - th_stress)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
         p = get_pressure(box_vecs, den, WTexp.forward).item()
@@ -87,40 +90,31 @@ class TestStress(unittest.TestCase):
 
         # ------- XC Functionals -------
         # LDA exchange
-        ag_stress = get_stress(box_vecs, den, lda_exchange)
+        ag_stress = get_stress(box_vecs, den, LocalExchange)
         th_stress = lda_exchange_stress(box_vecs, den)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
         # Perdew-Zunger correlation
-        ag_stress = get_stress(box_vecs, den, perdew_zunger_correlation)
+        ag_stress = get_stress(box_vecs, den, _perdew_zunger_correlation)
         th_stress = perdew_zunger_correlation_stress(box_vecs, den)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
         # Perdew-Wang correlation
-        ag_stress = get_stress(box_vecs, den, perdew_wang_correlation)
+        ag_stress = get_stress(box_vecs, den, _perdew_wang_correlation)
         th_stress = perdew_wang_correlation_stress(box_vecs, den)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
         # Chachiyo correlation
-        ag_stress = get_stress(box_vecs, den, chachiyo_correlation)
+        ag_stress = get_stress(box_vecs, den, _chachiyo_correlation)
         th_stress = chachiyo_correlation_stress(box_vecs, den)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
-        # PBE exchange
-        ag_stress = get_stress(box_vecs, den, pbe_exchange)
-        th_stress = pbe_exchange_stress(box_vecs, den)
+        # PBE XC
+        ag_stress = get_stress(box_vecs, den, PerdewBurkeErnzerhof)
+        th_stress = pbe_exchange_stress(box_vecs, den) + pbe_correlation_stress(box_vecs, den)
         self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
 
-        p = get_pressure(box_vecs, den, pbe_exchange).item()
-        p_from_stress = - torch.trace(ag_stress).item() / 3
-        self.assertTrue(np.allclose(p, p_from_stress, rtol=1e-10))
-
-        # PBE correlation
-        ag_stress = get_stress(box_vecs, den, pbe_correlation)
-        th_stress = pbe_correlation_stress(box_vecs, den)
-        self.assertTrue(np.allclose(ag_stress, th_stress, rtol=1e-10))
-
-        p = get_pressure(box_vecs, den, pbe_correlation).item()
+        p = get_pressure(box_vecs, den, PerdewBurkeErnzerhof).item()
         p_from_stress = - torch.trace(ag_stress).item() / 3
         self.assertTrue(np.allclose(p, p_from_stress, rtol=1e-10))
 
