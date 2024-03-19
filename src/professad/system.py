@@ -174,14 +174,15 @@ class System():
           initialization (bool)     : Whether this function is called during the initialization
                                       of a new system object or not
         """
-        ion_coords = ion_coords.clone().double().to(self._device)
+        ion_coords = ion_coords.to(dtype=torch.float64, device=self._device)
         if coord_type == 'cartesian':
-            if units == 'a':
-                unit_factor = self.A_per_b  # Angstrom
-            elif units == 'b':
-                unit_factor = 1.0  # Bohr
-            else:
-                raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
+            match units:
+                case 'a':
+                    unit_factor = self.A_per_b  # Angstrom
+                case 'b':
+                    unit_factor = 1.0  # Bohr
+                case _:
+                    raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
             aux_frac_coords = torch.matmul(ion_coords / unit_factor, torch.linalg.inv(self._box_vecs))
             # make sure fractional coordinates lie in [0,1), the repeated operation is intentional as small,
             # negative values get mapped to 1 (which is outside the permitted range) after the first operation
@@ -212,16 +213,17 @@ class System():
         """
         if not initialization:
             old_vol = self._vol()
-        if units == 'a':
-            unit_factor = self.A_per_b  # Angstrom
-        elif units == 'b':
-            unit_factor = 1.0  # Bohr
-        else:
-            raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
-        self._box_vecs = box_vecs.clone().double().to(self._device) / unit_factor
+        match units:
+            case 'a':
+                unit_factor = self.A_per_b  # Angstrom
+            case 'b':
+                unit_factor = 1.0  # Bohr
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'b\' (Bohr) or \'a\' (Angstrom)')
+        self._box_vecs = box_vecs.to(dtype=torch.float64, device=self._device) / unit_factor
         if not initialization:
             self._update_ionic_potential()
-            self._den *= old_vol / self._vol()
+            self._den = self._den * old_vol / self._vol()
             self._energy = self._compute_energy()
 
     def _potential_from_ions(self, cart_ion_coords):
@@ -478,12 +480,13 @@ class System():
             E = self._differentiable_gs_properties('energy')
         else:
             E = self._energy.item()
-        if units == 'Ha':
-            return E
-        elif units == 'eV':
-            return E * self.eV_per_Ha
-        else:
-            raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
+        match units:
+            case 'Ha':
+                return E
+            case 'eV':
+                return E * self.eV_per_Ha
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
 
     def volume(self, units='b3'):
         r"""
@@ -495,12 +498,13 @@ class System():
         Returns:
           float: Volume
         """
-        if units == 'b3':
-            return self._vol().item()
-        elif units == 'a3':
-            return self._vol().item() * self.A_per_b**3
-        else:
-            raise ValueError('Parameter \'units\' can only be \'b3\' or \'a3\'')
+        match units:
+            case 'b3':
+                return self._vol().item()
+            case 'a3':
+                return self._vol().item() * self.A_per_b**3
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'b3\' or \'a3\'')
 
     def pressure(self, units='Ha/b3'):
         r"""
@@ -517,14 +521,15 @@ class System():
         Returns:
           float or torch.Tensor (depending on requires_grad): Pressure
         """
-        if units == 'Ha/b3':
-            unit_factor = 1.0
-        elif units == 'eV/a3':
-            unit_factor = self.eV_per_Ha / self.A_per_b**3
-        elif units == 'GPa':
-            unit_factor = self.GPa_per_atomic
-        else:
-            raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
+        match units:
+            case 'Ha/b3':
+                unit_factor = 1.0
+            case 'eV/a3':
+                unit_factor = self.eV_per_Ha / self.A_per_b**3
+            case 'GPa':
+                unit_factor = self.GPa_per_atomic
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
         return self.__compute_volume_derivatives(bulk_modulus=False) * unit_factor
 
     def enthalpy(self, units='Ha'):
@@ -538,12 +543,13 @@ class System():
           float: Enthalpy
         """
         H = self._energy.item() + self.pressure() * self.volume()
-        if units == 'Ha':
-            return H
-        elif units == 'eV':
-            return H * self.eV_per_Ha
-        else:
-            raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
+        match units:
+            case 'Ha':
+                return H
+            case 'eV':
+                return H * self.eV_per_Ha
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'Ha\' or \'eV\'')
 
     def bulk_modulus(self, units='Ha/b3'):
         r"""
@@ -560,14 +566,15 @@ class System():
         Returns:
           float or torch.Tensor (depending on requires_grad): Bulk modulus
         """
-        if units == 'Ha/b3':
-            unit_factor = 1.0
-        elif units == 'eV/a3':
-            unit_factor = self.eV_per_Ha / self.A_per_b**3
-        elif units == 'GPa':
-            unit_factor = self.GPa_per_atomic
-        else:
-            raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
+        match units:
+            case 'Ha/b3':
+                unit_factor = 1.0
+            case 'eV/a3':
+                unit_factor = self.eV_per_Ha / self.A_per_b**3
+            case 'GPa':
+                unit_factor = self.GPa_per_atomic
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
         P, K = self.__compute_volume_derivatives(bulk_modulus=True)
         return K * unit_factor
 
@@ -648,7 +655,10 @@ class System():
         else:
             raise ValueError('Parameter \'units\' can only be \'Ha/b\' or \'eV/a\'')
 
-    def stress(self, units='Ha/b3'):
+    def stress(self,
+               units: Optional[str] = 'Ha/b3',
+               voigt: Optional[bool] = False
+               ) -> torch.Tensor:
         r"""
         Computes, via autograd, the stress tensor
 
@@ -663,15 +673,19 @@ class System():
         Returns:
           torch.Tensor: Stress tensor
         """
-        if units == 'Ha/b3':
-            unit_factor = 1.0
-        elif units == 'eV/a3':
-            unit_factor = self.eV_per_Ha / self.A_per_b**3
-        elif units == 'GPa':
-            unit_factor = self.GPa_per_atomic
+        match units:
+            case 'Ha/b3':
+                unit_factor = 1.0
+            case 'eV/a3':
+                unit_factor = self.eV_per_Ha / self.A_per_b**3
+            case 'GPa':
+                unit_factor = self.GPa_per_atomic
+            case _:
+                raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
+        if voigt:
+            return self._compute_stress() * unit_factor
         else:
-            raise ValueError('Parameter \'units\' can only be \'Ha/b3\', \'eV/a3\' or \'GPa\'')
-        return self._compute_stress() * unit_factor
+            return _voigt_to_3by3_stress(self._compute_stress() * unit_factor)
 
     def elastic_constants(self, units='Ha/b3'):
         r"""
@@ -950,7 +964,7 @@ class System():
         E = self._compute_energy()
         dEdstrain = torch.autograd.grad(E, voigt_strain)[0]
         self.detach()  # reset autograd features
-        return _voigt_to_3by3_stress(dEdstrain.div(self._vol()))
+        return dEdstrain.div(self._vol())
 
     def optimize_geometry(self, ftol=0.02, stol=0.002, g_conv_cond_count=3, g_method='LBFGSlinesearch',
                           g_step_size=0.1, g_maxiter=1000, g_verbose=False, **den_opt_kwargs):
