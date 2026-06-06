@@ -11,10 +11,10 @@ Elastic Properties
 
 .. _elastic_properties:
 
-The following are various post-processing tools that can be used to convert the 6 x 6 elastic 
+The following are various post-processing tools that can be used to convert the 6 x 6 elastic
 constant matrix of Birch coefficients into various quantities that characterize the elastic
-properties of the system. An example of how this might be used is given in the 
-:ref:`elastic constant example <elastic_constants_example>`. 
+properties of the system. An example of how this might be used is given in the
+:ref:`elastic constant example <elastic_constants_example>`.
 
 
 Reuss Moduli

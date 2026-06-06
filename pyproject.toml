@@ -1,12 +1,12 @@
 [build-system]
-requires = ['scikit-build-core', 'nanobind']
-build-backend = 'scikit_build_core.build'
+requires = ['setuptools']
+build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'professad'
 version = '1.0.1'
 
-author = [
+authors = [
   {name = 'Chuin Wei Tan', email = 'chuinwei_tan@g.harvard.edu'}
 ]
 
@@ -20,17 +20,40 @@ license = {file = "LICENSE"}
 dependencies = [
     'torch',
     'xitorch',
-    'torch-nl',
+    'matscipy',
     'numpy',
     'ase',
 ]
 
 [project.optional-dependencies]
 dev = [
-    'flake8',
+    'ruff',
+    'pre-commit',
     'sphinx',
     'pydata-sphinx-theme',
     'matplotlib',
 ]
 
+[tool.setuptools.packages.find]
+where = ["src"]
 
+[tool.ruff]
+line-length = 120
+exclude = [
+    ".eggs",
+    "*.egg",
+    "build",
+    "dist",
+    "docs",
+    ".git",
+    "__pycache__",
+    "tutorial_examples",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90"]
+ignore = ["E226", "E501", "E741", "E743", "C901", "E203", "F403", "F405"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

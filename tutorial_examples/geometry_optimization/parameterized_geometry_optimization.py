@@ -2,7 +2,8 @@ import numpy as np
 import torch
 
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+from professad.functionals import IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 
 # use GPU if available else use CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -31,7 +32,7 @@ box_vecs, frac_ion_coords = parameterized_geometry(params)
 WTexp = WangTeterStyleFunctional((5 / 6, 5 / 6, lambda x: torch.exp(x)))
 # required for GPU usage with functionals that inherit from the KineticFunctional class
 WTexp.set_device(device)
-terms = [IonIon, IonElectron, Hartree, WTexp.forward, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), WTexp, PerdewBurkeErnzerhof()]
 
 # construct the system object
 ions = [['Mg', 'mg.gga.recpot', frac_ion_coords.detach()]]

@@ -3,15 +3,15 @@ Fast Fourier Transform (FFT) Tools
 
 The following are utility functions for the implementation of various functionals via
 fast Fourier transform (FFT) related operations. For example, the gradient terms used in semi-local
-kinetic functionals, such as the :ref:`Luo-Karasiev-Trickey (LKT) functional <lkt>`, are implemented using FFTs. 
+kinetic functionals, such as the :ref:`Luo-Karasiev-Trickey (LKT) functional <lkt>`, are implemented using FFTs.
 The following code block shows how these FFT tools can be used to implement the LKT functional, given by
 
 .. math:: T_\text{LKT}[n] = T_\text{vW} + \int_\Omega d^3\mathbf{r} \frac{\tau_\text{TF}(\mathbf{r})}{\cosh(1.3 s)}
 
-where :math:`T_\text{vW}` is the :ref:`von Weizsaecker functional <vw>`, :math:`\tau_\text{TF}(\mathbf{r})` is 
+where :math:`T_\text{vW}` is the :ref:`von Weizsaecker functional <vw>`, :math:`\tau_\text{TF}(\mathbf{r})` is
 the :ref:`Thomas-Fermi <tf>` kinetic energy density and :math:`s` is the :ref:`reduced gradient <s>`. ::
 
-  def LuoKarasievTrickey(box_vecs, den): 
+  def LuoKarasievTrickey(box_vecs, den):
       TF_ked = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * den.pow(5 / 3)
       kx, ky, kz, k2 = wavevecs(box_vecs, den.shape)
       s = reduced_gradient(kx, ky, kz, den)
@@ -24,8 +24,8 @@ the :ref:`Thomas-Fermi <tf>` kinetic energy density and :math:`s` is the :ref:`r
 FFTs are also useful for functionals that involve real space convolutions. Besides the non-local kinetic functionals,
 the more widely known :ref:`Hartree functional <hart>` given by
 
-.. math:: U_\text{Hartree}[n] = \frac{1}{2} \int d^3\mathbf{r} d^3\mathbf{r}'~ 
-          \frac{n(\mathbf{r})n(\mathbf{r}')}{|\mathbf{r}-\mathbf{r}'|} 
+.. math:: U_\text{Hartree}[n] = \frac{1}{2} \int d^3\mathbf{r} d^3\mathbf{r}'~
+          \frac{n(\mathbf{r})n(\mathbf{r}')}{|\mathbf{r}-\mathbf{r}'|}
 
 also involves convolutions, and hence benefits from an FFT-based implementation motivated by the convolution theorem. ::
 
@@ -85,4 +85,3 @@ Reduced Laplacian
 .. _q:
 
 .. autofunction:: functional_tools.reduced_laplacian
-

@@ -5,19 +5,20 @@ Conventional Geometry Optimization
 ----------------------------------
 
 The following code is an example of how a geometry optimization can be set up for body-centred cubic
-lithium (bcc-Li). This example is meant to illustrate how one can perform different types of geometry 
-optimizations, including ones where 
+lithium (bcc-Li). This example is meant to illustrate how one can perform different types of geometry
+optimizations, including ones where
 
 * the lattice is fixed but the ions can move,
 * the lattice can deform but the fractional ionic coordinates are fixed, and
-* both the lattice and ions can be changed  
+* both the lattice and ions can be changed
 
 ::
 
   import torch
 
   from system import System
-  from functionals import IonIon, IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+  from functionals import IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+  from ion_utils import PickardSum
 
 
   # create system and compute ground state energy
@@ -26,12 +27,12 @@ optimizations, including ones where
   shape = System.ecut2shape(800, box_vecs)
   ions = [['Li', 'li.gga.recpot', box_len * torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]]).double()]]
   WTexp = WangTeterStyleFunctional((5 / 6, 5 / 6, lambda x: torch.exp(x)))
-  terms = [IonIon, IonElectron, Hartree, WTexp.forward, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WTexp, PerdewBurkeErnzerhof()]
   system = System(box_vecs, shape, ions, terms, units='a')
 
   system.optimize_density(1e-10)
   energy = system.energy('eV')
-  print('Initial Energy = {:.4f} eV per atom'.format(energy / system.ion_count()))
+  print('Initial Energy = {:.4f} eV per atom'.format(energy / system.n_ions))
 
   # OPTIMIZE IONIC POSITIONS / MINIMIZE FORCES
 
@@ -39,20 +40,20 @@ optimizations, including ones where
   print('Perturbing ions ...')
   system.place_ions(box_len * torch.tensor([[0.0, 0.1, 0.0], [0.6, 0.4, 0.6]], dtype=torch.double), units='a')
   system.optimize_density(1e-10)
-  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
   # restore optimal ionic positions by minimizing forces, keeping lattice fixed
   print('Performing force minimization ...')
   system.optimize_geometry(stol=None, ftol=1e-4, g_method='LBFGSlinesearch', g_verbose=True)
-  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
   # OPTIMIZE LATTICE / MINIMIZE STRESS
 
   # predict relaxed energy by fitting to murnaghan equation
   print('\nPerforming EOS fit for equilibrium volume ...')
   params, err = system.eos_fit(N=5)
-  relaxed_energy = system.ion_count() * params[2]
-  print('Equilibrium energy = {:.4f} eV per atom'.format(relaxed_energy / system.ion_count()))
+  relaxed_energy = system.n_ions * params[2]
+  print('Equilibrium energy = {:.4f} eV per atom'.format(relaxed_energy / system.n_ions))
 
   # distort lattice
   print('Deforming lattice ...')
@@ -61,12 +62,12 @@ optimizations, including ones where
                      [0.05, 0.04, 1.05]], dtype=torch.double)
   system.set_lattice(torch.matmul(tm, system.lattice_vectors('a').T).T, units='a')
   system.optimize_density(1e-10)
-  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
   # relax by minimizing stress, keeping box coordinates of ions fixed
   print('Performing stress minimization ...')
   system.optimize_geometry(ftol=None, stol=1e-4, g_method='LBFGSlinesearch', g_verbose=True)
-  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
   # OPTIMIZE GEOMETRY / MINIMIZE FORCES AND STRESS
 
@@ -78,12 +79,12 @@ optimizations, including ones where
   system.place_ions(torch.matmul(tm, system.cartesian_ionic_coordinates('a').T).T, units='a')
   system.set_lattice(torch.matmul(tm, system.lattice_vectors('a').T).T, units='a')
   system.optimize_density(1e-10)
-  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Perturbed energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
   # restore optimal geometry by minimizing forces and stress
   print('Performing geometry optimization ...')
   system.optimize_geometry(stol=1e-4, ftol=1e-4, g_method='LBFGSlinesearch', g_verbose=True)
-  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.ion_count()))
+  print('Optimized Energy = {:.4f} eV per atom'.format(system.energy('eV') / system.n_ions))
 
 
 This code results in the following output. ::
@@ -186,7 +187,8 @@ magnesium (hcp-Mg). ::
   import torch
 
   from system import System
-  from functionals import IonIon, IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+  from functionals import IonElectron, Hartree, WangTeterStyleFunctional, PerdewBurkeErnzerhof
+  from ion_utils import PickardSum
 
   # use GPU if available else use CPU
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -215,7 +217,7 @@ magnesium (hcp-Mg). ::
   WTexp = WangTeterStyleFunctional((5 / 6, 5 / 6, lambda x: torch.exp(x)))
   # required for GPU usage with functionals that inherit from the KineticFunctional class
   WTexp.set_device(device)
-  terms = [IonIon, IonElectron, Hartree, WTexp.forward, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WTexp, PerdewBurkeErnzerhof()]
 
   # construct the system object
   ions = [['Mg', 'mg.gga.recpot', frac_ion_coords.detach()]]
@@ -251,4 +253,3 @@ This code results in the following output. ::
   Geometry optimization successfully converged in 7 step(s)
 
   Optimized Results: Volume per atom = 23.15116 Å³, c/a = 1.63011
-

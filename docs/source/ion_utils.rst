@@ -29,5 +29,3 @@ Particle-Mesh Ewald Structure Factor
 
 Ion-ion Interaction Energy
 --------------------------
-
-.. autofunction:: ion_utils.ion_interaction_sum

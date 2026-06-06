@@ -1,9 +1,10 @@
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.functionals import IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.crystal_tools import get_cell
 
 # set energy terms and functionals to be used
-terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
 
 # use "get cell" to get the lattice vectors and fractional ionic coordinates of
 # a face-centred cubic (fcc) lattice
@@ -20,7 +21,7 @@ system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional'
 
 # perform density optimization (by default n_verbose is False, but we want to
 # display the progress of the density optimization)
-system.optimize_density(ntol=1e-7, conv_target='dE', n_method='LBFGS', n_verbose=True)
+system.optimize_density(ntol=1e-7, conv_target='dE', n_verbose=True)
 
 # check the measures of convergence
 dEdchi_max = system.check_density_convergence('dEdchi')

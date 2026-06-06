@@ -7,17 +7,17 @@ Local Density Approximation (LDA) XC Functionals
 Perdew-Zunger (PZ) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.PerdewZunger
+.. autoclass:: functionals.PerdewZunger
 
 Perdew-Wang (PW) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.PerdewWang
+.. autoclass:: functionals.PerdewWang
 
 Chachiyo Functional
 ^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.Chachiyo
+.. autoclass:: functionals.Chachiyo
 
 
 Generelized Gradient Approximation (GGA) XC Functionals
@@ -26,5 +26,4 @@ Generelized Gradient Approximation (GGA) XC Functionals
 Perdew-Burke-Ernzerhof (PBE) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.PerdewBurkeErnzerhof
-
+.. autoclass:: functionals.PerdewBurkeErnzerhof

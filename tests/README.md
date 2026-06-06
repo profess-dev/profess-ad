@@ -1,5 +1,5 @@
-This folder contains basic tests to check that the PROFESS-AD's various 
-functions work as expected. 
+This folder contains basic tests to check that the PROFESS-AD's various
+functions work as expected.
 
 These tests include:
 
@@ -10,5 +10,4 @@ These tests include:
 • Linear response function (test_linear_response.py) \
 • Particle-mesh Ewald scheme (test_particle_mesh_ewald.py) \
 • Field-dependent convolutions (test_field_dependent_convolution_spline.py) \
-• Agreement with PROFESS 4.0 (test_match_profess4.py) 
-
+• Agreement with PROFESS 4.0 (test_match_profess4.py)

@@ -15,10 +15,10 @@ plt.subplots(figsize=(5, 4))
 eta, lind = G_inv_lindhard(box_vecs, den)
 plt.plot(eta[0, 0, :], lind[0, 0, :], '-k')
 
-eta, F = get_inv_G(box_vecs, den, WangTeter)
+eta, F = get_inv_G(box_vecs, den, WangTeter())
 plt.plot(eta[0, 0, :], F[0, 0, :], 'r', ls=(0, (5, 5)))
 
-eta, F = get_inv_G(box_vecs, den, LuoKarasievTrickey)
+eta, F = get_inv_G(box_vecs, den, LuoKarasievTrickey())
 plt.plot(eta[0, 0, :], F[0, 0, :], 'b', ls=(0, (1, 1)))
 
 pg = PauliGaussian()
@@ -26,7 +26,9 @@ pg.set_PGSL025()
 eta, F = get_inv_G(box_vecs, den, pg.forward)
 plt.plot(eta[0, 0, :], F[0, 0, :], '--m')
 
-eta, F = get_inv_G(box_vecs, den, lambda bv, den: 0.6 * Weizsaecker(bv, den) + ThomasFermi(bv, den))
+_wz = Weizsaecker()
+_tf = ThomasFermi()
+eta, F = get_inv_G(box_vecs, den, lambda bv, den: 0.6 * _wz(bv, den) + _tf(bv, den))
 plt.plot(eta[0, 0, :], F[0, 0, :], '-.g')
 
 plt.xlim([0, eta[0, 0, -1]])

@@ -1,10 +1,11 @@
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, XuWangMa, PerdewBurkeErnzerhof
+from professad.functionals import IonElectron, Hartree, XuWangMa, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.crystal_tools import get_cell
 from professad.elastic_tools import shear_average, poissons_ratio
 
 # define system
-terms = [IonIon, IonElectron, Hartree, XuWangMa, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), XuWangMa(), PerdewBurkeErnzerhof()]
 box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.52, coord_type='fractional')
 ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 shape = System.ecut2shape(2000, box_vecs)

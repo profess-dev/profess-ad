@@ -8,7 +8,7 @@ from professad.functionals import IonElectron, Weizsaecker
 # the single electron quantum harmonic oscillator (QHO) is a non-interacting
 # single-orbital system - hence, it can be modelled well with just the
 # ion-electron interaction and Weizsaecker terms
-terms = [IonElectron, Weizsaecker]
+terms = [IonElectron(), Weizsaecker()]
 
 # use a large box to simulate such localied systems with periodic
 # boundary conditions so that the electron density will approach zero
@@ -32,16 +32,16 @@ system.set_electron_number(1)
 
 # QHO quadratic potential
 k = 10
-xf, yf, zf = np.meshgrid(np.arange(shape[0]) / shape[0], np.arange(shape[1]) / shape[1],
-                         np.arange(shape[2]) / shape[2], indexing='ij')
-x = box_vecs[0, 0] * xf + box_vecs[1, 0] * yf + box_vecs[2, 0] * zf
-y = box_vecs[0, 1] * xf + box_vecs[1, 1] * yf + box_vecs[2, 1] * zf
-z = box_vecs[0, 2] * xf + box_vecs[1, 2] * yf + box_vecs[2, 2] * zf
-r = np.sqrt(x * x + y * y + z * z)
+frac = torch.meshgrid(torch.arange(shape[0], dtype=torch.double) / shape[0],
+                      torch.arange(shape[1], dtype=torch.double) / shape[1],
+                      torch.arange(shape[2], dtype=torch.double) / shape[2], indexing='ij')
+cart = torch.stack([sum(box_vecs[j, i] * frac[j] for j in range(3)) for i in range(3)])
+x, y, z = cart[0], cart[1], cart[2]
+r = torch.sqrt(x * x + y * y + z * z)
 qho_pot = 0.5 * k * ((x - L / 2).pow(2) + (y - L / 2).pow(2) + (z - L / 2).pow(2))
 
 # set external potential to QHO potential
-system.set_potential(torch.as_tensor(qho_pot).double())
+system.set_potential(qho_pot)
 
 # perform density optimization
 system.optimize_density(ntol=1e-7, n_verbose=True)

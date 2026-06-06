@@ -1,5 +1,6 @@
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.functionals import IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.crystal_tools import get_cell
 
 f = 0.05
@@ -12,7 +13,7 @@ print('Energy cut-off = {} eV with density optimization tolerance {}'.format(ene
 print('Stretched up to ±{}% over {} points and fitted with the {} EOS\n'
       .format(f * 100, N, 'Birch-Murnaghan'))
 
-terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
 crystal_predv0s = [('fcc', 16.8), ('hcp', 16.9), ('bcc', 17.2), ('sc', 19.9), ('dc', 28.8)]
 
 print('{:^8} {:^17} {:^17} {:^14} {:^14}'.format('Crystal', 'V₀/A³ per atom', 'E₀/eV per atom', 'ΔE₀/meV', 'K₀/GPa'))

@@ -13,7 +13,7 @@ GPa_per_atomic = J_per_Ha / m_per_bohr**3 * 1e-9
 GPa_per_Ab3 = GPa_per_atomic / (eV_per_Ha / A_per_b**3)
 
 
-def fit_eos(vol, ene, eos='bm', plot=False):
+def fit_eos(vol, ene, eos="bm", plot=False):
     r"""
     Fits volume-energy data to the Murnaghan or Birch-Murnaghan equation of state. For an
     accurate fit, it is recommended that the energy-volume points are distributed evenly
@@ -56,23 +56,26 @@ def fit_eos(vol, ene, eos='bm', plot=False):
 
     # fit to Murnaghan or Birch-Murnaghan equation of state
     def murn(v, K0, K0prime, E0, V0):
-        if eos == 'm':
-            return E0 + (K0 * v / K0prime) * ((((V0 / v)**K0prime) / (K0prime - 1)) + 1) - K0 * V0 / (K0prime - 1)
-        if eos == 'bm':
-            return E0 + 9 * V0 * K0 / 16 * (K0prime * ((V0 / v)**(2 / 3) - 1)**3
-                                            + ((V0 / v)**(2 / 3) - 1)**2 * (6 - 4 * (V0 / v)**(2 / 3)))
+        if eos == "m":
+            return E0 + (K0 * v / K0prime) * ((((V0 / v) ** K0prime) / (K0prime - 1)) + 1) - K0 * V0 / (K0prime - 1)
+        if eos == "bm":
+            return E0 + 9 * V0 * K0 / 16 * (
+                K0prime * ((V0 / v) ** (2 / 3) - 1) ** 3
+                + ((V0 / v) ** (2 / 3) - 1) ** 2 * (6 - 4 * (V0 / v) ** (2 / 3))
+            )
         else:
-            raise ValueError('Only \'m\' or \'bm\' recognized for \'eos\' argument.')
+            raise ValueError("Only 'm' or 'bm' recognized for 'eos' argument.")
+
     params, pcov = curve_fit(murn, vol, ene, p0=(K0_g, K0prime_g, E0_g, V0_g), maxfev=1000)
     err = np.sqrt(np.diag(pcov))
     if plot:  # optional plotting
-        plt.plot(vol, ene, 'rx')
+        plt.plot(vol, ene, "rx")
         vfit = np.linspace(0.99 * vol[0], 1.01 * vol[-1])
         efit = murn(vfit, params[0], params[1], params[2], params[3])
-        plt.plot(vfit, efit, 'b-')
-        plt.xlabel('Volume/Å³')
-        plt.ylabel('Energy/eV')
-        plt.legend(['data', 'fit'], loc='best')
+        plt.plot(vfit, efit, "b-")
+        plt.xlabel("Volume/Å³")
+        plt.ylabel("Energy/eV")
+        plt.legend(["data", "fit"], loc="best")
         plt.show()
     return params, err
 
@@ -122,7 +125,7 @@ def reuss_moduli(C):
     return K, G
 
 
-def shear_average(C, mean_type='arithmetic'):
+def shear_average(C, mean_type="arithmetic"):
     """
     Processes a 6 x 6 elastic constant matrix into a shear modulus based on the average of
     the Reuss and Voigt shear moduli, which could be an arithmetic or geometric mean.
@@ -135,12 +138,12 @@ def shear_average(C, mean_type='arithmetic'):
     """
     Kv, Gv = voigt_moduli(C)
     Kr, Gr = reuss_moduli(C)
-    if mean_type == 'arithmetic':
+    if mean_type == "arithmetic":
         return 0.5 * (Gv + Gr)
-    elif mean_type == 'geometric':
-        return (Gv * Gr)**(1 / 2)
+    elif mean_type == "geometric":
+        return (Gv * Gr) ** (1 / 2)
     else:
-        raise ValueError('Only \'arithmetic\' or \'geometric\' recognized for \'mean_type\' argument')
+        raise ValueError("Only 'arithmetic' or 'geometric' recognized for 'mean_type' argument")
 
 
 def poissons_ratio(K, G):

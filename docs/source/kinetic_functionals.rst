@@ -17,27 +17,27 @@ Thomas-Fermi Functional
 
 .. _tf:
 
-.. autofunction:: functionals.ThomasFermi
+.. autoclass:: functionals.ThomasFermi
 
 von Weizsaecker Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. _vw:
 
-.. autofunction:: functionals.Weizsaecker
+.. autoclass:: functionals.Weizsaecker
 
 Semi-local Kinetic Energy Functionals
 -------------------------------------
 
 Semi-local functionals generally take the form
 
-.. math:: T_\text{S}[n] = T_\text{vW}[n] +  \int d^3\mathbf{r} ~ F_\theta[n](\mathbf{r}) \tau_\text{TF}(\mathbf{r}) 
+.. math:: T_\text{S}[n] = T_\text{vW}[n] +  \int d^3\mathbf{r} ~ F_\theta[n](\mathbf{r}) \tau_\text{TF}(\mathbf{r})
 
 where :math:`T_\text{vW}[n]` is the von Weizsaecker kinetic energy functional,
-:math:`\tau_\text{TF}(\mathbf{r})` is the Thomas-Fermi kinetic energy density and 
+:math:`\tau_\text{TF}(\mathbf{r})` is the Thomas-Fermi kinetic energy density and
 :math:`F_\theta[n](\mathbf{r})` is the Pauli enhancement factor to be approximated.
 
-Often, the Pauli enhancement factor is made a function of the :ref:`reduced gradient <s>`, 
+Often, the Pauli enhancement factor is made a function of the :ref:`reduced gradient <s>`,
 
 .. math:: s = \frac{|\nabla f|}{2(3\pi)^{1/3} n^{4/3}}
 
@@ -48,16 +48,16 @@ and the :ref:`reduced Laplacian <q>`,
 vWGTF Functionals
 ^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.vWGTF1
+.. autoclass:: functionals.vWGTF1
 
-.. autofunction:: functionals.vWGTF2
+.. autoclass:: functionals.vWGTF2
 
 Luo-Karasiev-Trickey (LKT) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. _lkt:
 
-.. autofunction:: functionals.LuoKarasievTrickey
+.. autoclass:: functionals.LuoKarasievTrickey
 
 Pauli-Gaussian Functionals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -76,24 +76,24 @@ Non-local Kinetic Energy Functionals
 
 Wang-Teter (WT) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: functionals.WangTeter
+.. autoclass:: functionals.WangTeter
 
 Perrot Functional
 ^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.Perrot
+.. autoclass:: functionals.Perrot
 
 Smargiassi-Madden (SM) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.SmargiassiMadden
+.. autoclass:: functionals.SmargiassiMadden
 
 Wang-Govind-Carter 98 (WGC98) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.WangGovindCarter98
+.. autoclass:: functionals.WangGovindCarter98
 
-Wang-Teter Style Functional 
+Wang-Teter Style Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: functionals.WangTeterStyleFunctional
@@ -110,11 +110,11 @@ Foley-Madden (FM) Functional
 
 .. autoclass:: functionals.FoleyMadden
    :members:
-   
+
 KGAP Functional
 ^^^^^^^^^^^^^^^
 
-.. autofunction:: functionals.KGAP
+.. autoclass:: functionals.KGAP
 
 Huang-Carter (HC) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -135,12 +135,12 @@ Revised Huang-Carter (revHC) Functional
 Mi-Genova-Pavanello (MGP) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: functionals.MiGenovaPavanello   
+.. autoclass:: functionals.MiGenovaPavanello
    :members:
-   
+
 Xu-Wang-Ma (XWM) Functional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   
+
 .. _xwm:
-   
-.. autofunction:: functionals.XuWangMa
+
+.. autoclass:: functionals.XuWangMa

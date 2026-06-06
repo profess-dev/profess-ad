@@ -1,7 +1,7 @@
 import numpy as np
 import torch
+from matscipy.neighbours import neighbour_list as matscipy_nl
 from professad.functional_tools import wavevecs, interpolate
-from torch_nl import compute_neighborlist
 
 # ----------------------------------------------------------------------------
 # This script contains auxiliary functions for computing the ion related
@@ -28,14 +28,14 @@ def get_ion_charge(path):
       int: Ion charge
     """
     total_lines = 0
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         for line in f:
             total_lines += 1
     comment_lines = 0
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         for line in f:
             comment_lines += 1
-            if 'END COMMENT' in line:
+            if "END COMMENT" in line:
                 break
         f.readline()  # read the '3     5' line
         k_max = float(f.readline()) * bohr
@@ -59,16 +59,16 @@ def interpolate_recpot(path, ks_interp):
       torch.Tensor: Reciprocal space ionic potential
     """
     pot_ft = []
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         for line in f:
-            if 'END COMMENT' in line:
+            if "END COMMENT" in line:
                 break
         f.readline()  # read the '3     5' line
         k_max = float(f.readline()) * bohr
         for line in f:
             if len(line.split()) == 3:
                 pot_ft += line.split()
-    pot_ft = np.asarray(pot_ft, dtype=np.float64, order='C') * pot_conv_factor
+    pot_ft = np.asarray(pot_ft, dtype=np.float64, order="C") * pot_conv_factor
     ks, dk = np.linspace(0, k_max, pot_ft.size, retstep=True)
     z = round((pot_ft[1] - pot_ft[0]) * dk * dk / (-4 * np.pi))
     pot_ft[1:] += 4 * np.pi * z / (ks[1:] * ks[1:])
@@ -84,6 +84,7 @@ def interpolate_recpot(path, ks_interp):
 # -----------------------------------------------------------------------------------------------------------------------
 #                                     Utility Functions for Lattice Convolution
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def lattice_sum(box_vecs, shape, cart_ion_coords, f_tilde, order=None):
     r"""
@@ -113,28 +114,35 @@ def lattice_sum(box_vecs, shape, cart_ion_coords, f_tilde, order=None):
     if order is None:
         S = structure_factor(box_vecs, shape, cart_ion_coords)
     else:
-        assert (order % 2 == 0) & (order >= 2), 'Requires even order n ≥ 2'
+        assert (order % 2 == 0) & (order >= 2), "Requires even order n ≥ 2"
         S = structure_factor_spline(box_vecs, shape, cart_ion_coords, order)
-    return torch.fft.irfftn(S * f_tilde, shape, norm='forward') / torch.abs(torch.linalg.det(box_vecs))
+    return torch.fft.irfftn(S * f_tilde, shape, norm="forward") / torch.abs(torch.linalg.det(box_vecs))
 
 
-def structure_factor(box_vecs, shape, cart_ion_coords):
+def structure_factor(box_vecs, shape, cart_ion_coords, weights=None):
     r"""
     Computes, using the direct :math:`\mathcal{O}(N^2)` method, the structure factor given by
 
-    .. math:: S(\mathbf{q}) = \sum_{i=1}^N e^{-i\mathbf{q}\cdot\mathbf{r}}.
+    .. math:: S(\mathbf{q}) = \sum_{i=1}^N w_i\, e^{-i\mathbf{q}\cdot\mathbf{r}_i},
+
+    where :math:`w_i` are optional per-ion weights (default 1).
 
     Args:
       box_vecs (torch.Tensor)        : Lattice vectors
       shape (torch.Size or iterable) : Real-space grid shape
       cart_ion_coords (torch.Tensor) : Cartesian ionic coordinates
+      weights (torch.Tensor or None) : Per-ion weights of shape ``(N,)``. Default ``None`` uses
+                                       unit weights.
 
     Returns:
       torch.Tensor: Exact structure factor
     """
     kx, ky, kz, k2 = wavevecs(box_vecs, shape)
-    kr = torch.einsum('xyza, ia -> xyzi', torch.stack([kx, ky, kz], dim=-1), cart_ion_coords)
-    return torch.sum(torch.exp(-1j * kr), axis=3)
+    kr = torch.einsum("xyza, ia -> xyzi", torch.stack([kx, ky, kz], dim=-1), cart_ion_coords)
+    phases = torch.exp(-1j * kr)
+    if weights is not None:
+        phases = weights.reshape(1, 1, 1, -1) * phases
+    return torch.sum(phases, axis=3)
 
 
 def cardinal_b_spline_values(x, order):
@@ -171,16 +179,19 @@ def cardinal_b_spline_values(x, order):
     Returns:
       torch.Tensor: Cardinal b-spline values
     """
-    assert torch.all(x >= 0.0) and torch.all(x < 1.0), 'Requires 0 ≤ x < 1'
-    assert order >= 2, 'Requires order n ≥ 2'
+    assert torch.all(x >= 0.0) and torch.all(x < 1.0), "Requires 0 ≤ x < 1"
+    assert order >= 2, "Requires order n ≥ 2"
 
-    M1 = [[torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)]
-          for _ in range(int(order / 2))]
-    M2 = [[torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)]
-          for _ in range(int((order - 1) / 2))]
+    M1 = [
+        [torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)] for _ in range(int(order / 2))
+    ]
+    M2 = [
+        [torch.zeros(x.shape, dtype=torch.double, device=x.device) for _ in range(order)]
+        for _ in range(int((order - 1) / 2))
+    ]
 
-    M1[0][0][:] = x        # M2(x)   = x
-    M1[0][1][:] = 1 - x    # M2(x+1) = 2-(x+1)
+    M1[0][0][:] = x  # M2(x)   = x
+    M1[0][1][:] = 1 - x  # M2(x+1) = 2-(x+1)
 
     for n in range(3, order + 1):
         j = int(n / 2) - 1
@@ -215,7 +226,7 @@ def exponential_spline_b(m, N, order):
     return torch.exp(1j * 2 * np.pi * m * (order - 1) / N) / b
 
 
-def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
+def structure_factor_spline(box_vecs, shape, cart_ion_coords, order, weights=None):
     r"""
     Computes an approximate structure factor using the Particle-Mesh Ewald scheme based on cardinal B-splines,
     which is an :math:`\mathcal{O}(N\log N)` scaling method. For comprehensive details, see the following
@@ -232,6 +243,8 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
       shape (torch.Size or iterable) : Real-space grid shape
       cart_ion_coords (torch.Tensor) : Cartesian ionic coordinates
       order (int)                    : Order of approximation for structure factor
+      weights (torch.Tensor or None) : Per-ion weights of shape ``(N,)``. Default ``None`` uses
+                                       unit weights.
 
     Returns:
       torch.Tensor: Approximate structure factor
@@ -243,8 +256,9 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
     # element -1e-16, first operation makes it 1.0, second operation makes it 0.0
     frac_ion_coords = frac_ion_coords - torch.floor(frac_ion_coords)
     frac_ion_coords = frac_ion_coords - torch.floor(frac_ion_coords)
-    assert torch.all(frac_ion_coords >= 0) and torch.all(frac_ion_coords < 1), \
-           'Fractional ionic coordinates don\'t all lie in [0,1)'
+    assert torch.all(frac_ion_coords >= 0) and torch.all(frac_ion_coords < 1), (
+        "Fractional ionic coordinates don't all lie in [0,1)"
+    )
 
     # getting Q(l1, l2, l3)
     Q = torch.zeros(shape, dtype=torch.double, device=box_vecs.device)
@@ -261,16 +275,20 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
     M1 = cardinal_b_spline_values(u1 - floor1, order)
     M2 = cardinal_b_spline_values(u2 - floor2, order)
 
-    orders = torch.arange(0, order, dtype=torch.int64, device=box_vecs.device) \
-             .unsqueeze(1).expand((-1, frac_ion_coords.shape[0]))
-    l0 = (torch.fmod(orders - floor0, N0) + (orders < floor0) * N0)
-    l1 = (torch.fmod(orders - floor1, N1) + (orders < floor1) * N1)
-    l2 = (torch.fmod(orders - floor2, N2) + (orders < floor2) * N2)
+    orders = (
+        torch.arange(0, order, dtype=torch.int64, device=box_vecs.device)
+        .unsqueeze(1)
+        .expand((-1, frac_ion_coords.shape[0]))
+    )
+    l0 = torch.fmod(orders - floor0, N0) + (orders < floor0) * N0
+    l1 = torch.fmod(orders - floor1, N1) + (orders < floor1) * N1
+    l2 = torch.fmod(orders - floor2, N2) + (orders < floor2) * N2
 
     for i in range(frac_ion_coords.shape[0]):
-        M0i, M1i, M2i = torch.meshgrid(M0[:, i], M1[:, i], M2[:, i], indexing='ij')
-        l0i, l1i, l2i = torch.meshgrid(l0[:, i], l1[:, i], l2[:, i], indexing='ij')
-        Q[l0i, l1i, l2i] += M0i * M1i * M2i
+        M0i, M1i, M2i = torch.meshgrid(M0[:, i], M1[:, i], M2[:, i], indexing="ij")
+        l0i, l1i, l2i = torch.meshgrid(l0[:, i], l1[:, i], l2[:, i], indexing="ij")
+        w_i = weights[i] if weights is not None else 1
+        Q[l0i, l1i, l2i] += w_i * M0i * M1i * M2i
 
     Q_ft = torch.fft.rfftn(Q)
 
@@ -281,53 +299,182 @@ def structure_factor_spline(box_vecs, shape, cart_ion_coords, order):
     b1 = exponential_spline_b(n1, N1, order)
     n2 = torch.arange(0, Q_ft.shape[2], dtype=torch.double, device=box_vecs.device)
     b2 = exponential_spline_b(n2, N2, order)
-    b0, b1, b2 = torch.meshgrid(b0, b1, b2, indexing='ij')
+    b0, b1, b2 = torch.meshgrid(b0, b1, b2, indexing="ij")
 
     return torch.conj(b0 * b1 * b2 * Q_ft)
 
+
 # -----------------------------------------------------------------------------------------------------------------------
-#                                  Utility Functions for Ion-ion Interaction Term
+#                                     Ion-ion Interaction Classes
 # -----------------------------------------------------------------------------------------------------------------------
 
 
-def ion_interaction_sum(box_vecs, coords, charges, Rc, Rd):
+class IonIon(torch.nn.Module):
     r"""
-    Computes the ion-ion interaction energy using a real-space pairwise electrostatic summation
-    in a uniform neutralizing background. Key parameters are :math:`R_c`, the cut-off radius, and
-    :math:`R_d`, a damping parameter. It was recommended that :math:`R_d = 2 h_\text{max}` and
-    :math:`R_c = 3 R_d^2 / h_\text{max}`, where :math:`h_\text{max}` is the maximum interplanar
-    distance.
+    Base class for ion-ion interaction energy terms. Subclasses must implement
+    :meth:`forward`, which takes ``(box_vecs, coords, charges)`` and returns a scalar energy.
+    """
 
-    More details can be found in `Phys. Rev. Materials 2, 013806 <https://doi.org/10.1103/PhysRevMaterials.2.013806>`_.
+    def forward(self, box_vecs, coords, charges):
+        raise NotImplementedError
+
+
+def _ewald_real_space(box_vecs, coords, charges, alpha, Rc):
+    r"""
+    Computes the real-space part of the Ewald sum:
+
+    .. math:: E_\text{real} = \frac{1}{2} \sum_{i \neq j} q_i q_j
+              \frac{\text{erfc}(\alpha r_{ij})}{r_{ij}}.
+    """
+    i_idx, j_idx, shifts_idx = matscipy_nl(
+        "ijS",
+        pbc=(True, True, True),
+        cell=box_vecs.detach().cpu().numpy(),
+        positions=coords.detach().cpu().numpy(),
+        cutoff=float(Rc),
+    )
+    i_idx = torch.as_tensor(i_idx, dtype=torch.long, device=coords.device)
+    j_idx = torch.as_tensor(j_idx, dtype=torch.long, device=coords.device)
+    shifts_idx = torch.as_tensor(shifts_idx, dtype=box_vecs.dtype, device=coords.device)
+    Zi = torch.index_select(charges, 0, i_idx)
+    Zj = torch.index_select(charges, 0, j_idx)
+    r_ij = (
+        torch.index_select(coords, 0, j_idx) + torch.matmul(shifts_idx, box_vecs) - torch.index_select(coords, 0, i_idx)
+    ).norm(p=2, dim=1)
+    return 0.5 * torch.sum(Zi * Zj * torch.erfc(alpha * r_ij) / r_ij)
+
+
+class EwaldSum(IonIon):
+    r"""
+    Ion-ion interaction via Ewald summation. When ``pme_order`` is ``None``, the reciprocal sum
+    uses explicit :math:`\mathcal{O}(N^2)` G-vector enumeration (requires ``k_cutoff``). When
+    ``pme_order`` is given, the Particle-Mesh Ewald scheme is used for
+    :math:`\mathcal{O}(N \log N)` scaling (requires ``shape``).
 
     Args:
-      box_vecs (torch.Tensor) : Lattice vectors
-      coords (torch.Tensor)   : Cartesian ionic coordinates
-      charges (torch.Tensor)  : Charges of all ions in the simulation cell
-      Rc, Rd  (float)         : Parameters for the electrtrostatic sum (see paper)
-
-    Returns:
-      torch.Tensor: Ion-ion interaction energy
+      alpha (float)            : Ewald splitting parameter
+      Rc (float)               : Real-space cutoff
+      k_cutoff (float or None) : Reciprocal-space cutoff (required for vanilla Ewald)
+      shape (tuple or None)    : FFT grid shape (required for PME)
+      pme_order (int or None)  : PME spline order (even int >= 2), or ``None`` for vanilla
     """
-    # get neighbor list
-    mapping, batch_mapping, shifts_idx = compute_neighborlist(
-        Rc, coords, box_vecs, torch.ones((3,), device=coords.device).bool(),
-        torch.zeros((coords.shape[0], ), dtype=torch.long, device=coords.device), self_interaction=False
-    )
-    # charge terms
-    rho = torch.sum(charges) / torch.abs(torch.linalg.det(box_vecs))
-    Zi = torch.index_select(charges, 0, mapping[0])  # (PQ,)
-    Zj = torch.index_select(charges, 0, mapping[1])  # (PQ,)
-    Qi = torch.scatter_add(charges, 0, mapping[0], Zj)  # (P,)
-    aux = (0.75 / np.pi) * Qi / rho  # (P,)
-    Ra = aux.sign() * aux.abs().pow(1 / 3)  # (P,) | a.pow(n<1) gives nans for a<0
-    # pairwise distances
-    r_ij = (torch.index_select(coords, 0, mapping[1]) + torch.matmul(shifts_idx, box_vecs)
-            - torch.index_select(coords, 0, mapping[0])).norm(p=2, dim=1)  # (PQ,)
-    # energy terms
-    E_local = torch.sum(0.5 * Zi * Zj * torch.erfc(r_ij.div(Rd)).div(r_ij))  # sum over i,j
-    E_corr = torch.sum(- np.pi * charges * rho * Ra.square()
-                       + np.pi * charges * rho * (Ra.square() - 0.5 * Rd * Rd) * torch.erf(Ra.div(Rd))
-                       + np.sqrt(np.pi) * charges * rho * Ra * Rd * torch.exp(- Ra.square().div(Rd * Rd))
-                       - charges.square() / np.sqrt(np.pi) / Rd)  # sum over i
-    return E_local + E_corr
+
+    def __init__(self, alpha, Rc, k_cutoff=None, shape=None, pme_order=None):
+        super().__init__()
+        self.alpha = alpha
+        self.Rc = Rc
+        self.k_cutoff = k_cutoff
+        self.shape = shape
+        self.pme_order = pme_order
+
+    def forward(self, box_vecs, coords, charges):
+        alpha, Rc = self.alpha, self.Rc
+        vol = torch.abs(torch.linalg.det(box_vecs))
+
+        # real-space sum
+        E_real = _ewald_real_space(box_vecs, coords, charges, alpha, Rc)
+
+        # reciprocal-space sum
+        if self.pme_order is not None:
+            assert self.shape is not None, "shape is required for PME Ewald"
+            assert (self.pme_order % 2 == 0) & (self.pme_order >= 2), "requires even pme_order >= 2"
+            S_q = structure_factor_spline(box_vecs, self.shape, coords, self.pme_order, weights=charges)
+            kx, ky, kz, k2 = wavevecs(box_vecs, self.shape)
+            kernel = torch.zeros(k2.shape, dtype=torch.double, device=coords.device)
+            nonzero = k2 > 0
+            kernel[nonzero] = torch.exp(-k2[nonzero] / (4 * alpha * alpha)) / k2[nonzero]
+            S_q_abs2 = S_q.real.pow(2) + S_q.imag.pow(2)
+            # rfft stores half the last dimension; interior columns represent two conjugate pairs
+            weight = 2 * torch.ones(k2.shape, dtype=torch.double, device=coords.device)
+            weight[:, :, 0] = 1
+            if self.shape[2] % 2 == 0:
+                weight[:, :, -1] = 1
+            E_recip = 2 * np.pi / vol * torch.sum(weight * S_q_abs2 * kernel)
+        else:
+            assert self.k_cutoff is not None, "k_cutoff is required for vanilla Ewald"
+            b = 2 * np.pi * torch.linalg.inv(box_vecs.T)
+            b_lengths = torch.sqrt(torch.sum(b.detach().pow(2), dim=1))
+            n_max = torch.ceil(self.k_cutoff / b_lengths).int()
+            n0 = torch.arange(-n_max[0], n_max[0] + 1, device=coords.device)
+            n1 = torch.arange(-n_max[1], n_max[1] + 1, device=coords.device)
+            n2 = torch.arange(-n_max[2], n_max[2] + 1, device=coords.device)
+            nA, nB, nC = torch.meshgrid(n0, n1, n2, indexing="ij")
+            nA, nB, nC = nA.reshape(-1), nB.reshape(-1), nC.reshape(-1)
+            G = nA.unsqueeze(1).double() * b[0] + nB.unsqueeze(1).double() * b[1] + nC.unsqueeze(1).double() * b[2]
+            G2 = torch.sum(G.pow(2), dim=1)
+            G_norm = torch.sqrt(G2)
+            mask = (G_norm > 0) & (G_norm <= self.k_cutoff)
+            G, G2 = G[mask], G2[mask]
+            G_dot_r = torch.matmul(G, coords.T)
+            cos_phase = torch.cos(G_dot_r)
+            sin_phase = torch.sin(G_dot_r)
+            S_real = torch.matmul(cos_phase, charges)
+            S_imag = -torch.matmul(sin_phase, charges)
+            S_q_abs2 = S_real.pow(2) + S_imag.pow(2)
+            kernel = torch.exp(-G2 / (4 * alpha * alpha)) / G2
+            E_recip = 2 * np.pi / vol * torch.sum(S_q_abs2 * kernel)
+
+        E_self = -alpha / np.sqrt(np.pi) * torch.sum(charges.pow(2))
+        E_bg = -np.pi / (2 * vol * alpha * alpha) * torch.sum(charges).pow(2)
+        return E_real + E_recip + E_self + E_bg
+
+
+class PickardSum(IonIon):
+    r"""
+    Ion-ion interaction via the Pickard real-space pairwise electrostatic sum.
+
+    Based on `Phys. Rev. Materials 2, 013806 <https://doi.org/10.1103/PhysRevMaterials.2.013806>`_.
+
+    Args:
+      Rc (float) : Cutoff radius
+      Rd (float) : Damping parameter
+    """
+
+    def __init__(self, Rc=None, Rd=None):
+        super().__init__()
+        self.Rc = Rc
+        self.Rd = Rd
+
+    def forward(self, box_vecs, coords, charges):
+        Rc, Rd = self.Rc, self.Rd
+        if Rc is None or Rd is None:
+            interplanar_dist = 1 / torch.sqrt(torch.sum(torch.linalg.inv(box_vecs.detach().T).pow(2), 1))
+            h_max = torch.max(interplanar_dist)
+            if Rc is None:
+                Rd = 2 * h_max
+                Rc = 3 * Rd * Rd / h_max
+            else:
+                Rd = torch.sqrt(h_max * Rc / 3)
+        # neighbor list
+        i_idx, j_idx, shifts_idx = matscipy_nl(
+            "ijS",
+            pbc=(True, True, True),
+            cell=box_vecs.detach().cpu().numpy(),
+            positions=coords.detach().cpu().numpy(),
+            cutoff=float(Rc),
+        )
+        i_idx = torch.as_tensor(i_idx, dtype=torch.long, device=coords.device)
+        j_idx = torch.as_tensor(j_idx, dtype=torch.long, device=coords.device)
+        shifts_idx = torch.as_tensor(shifts_idx, dtype=box_vecs.dtype, device=coords.device)
+        # charge terms
+        rho = torch.sum(charges) / torch.abs(torch.linalg.det(box_vecs))
+        Zi = torch.index_select(charges, 0, i_idx)
+        Zj = torch.index_select(charges, 0, j_idx)
+        Qi = torch.scatter_add(charges, 0, i_idx, Zj)
+        aux = (0.75 / np.pi) * Qi / rho
+        Ra = aux.sign() * aux.abs().pow(1 / 3)  # a.pow(n<1) gives nans for a<0
+        # pairwise distances
+        r_ij = (
+            torch.index_select(coords, 0, j_idx)
+            + torch.matmul(shifts_idx, box_vecs)
+            - torch.index_select(coords, 0, i_idx)
+        ).norm(p=2, dim=1)
+        # energy terms
+        E_local = torch.sum(0.5 * Zi * Zj * torch.erfc(r_ij.div(Rd)).div(r_ij))
+        E_corr = torch.sum(
+            -np.pi * charges * rho * Ra.square()
+            + np.pi * charges * rho * (Ra.square() - 0.5 * Rd * Rd) * torch.erf(Ra.div(Rd))
+            + np.sqrt(np.pi) * charges * rho * Ra * Rd * torch.exp(-Ra.square().div(Rd * Rd))
+            - charges.square() / np.sqrt(np.pi) / Rd
+        )
+        return E_local + E_corr

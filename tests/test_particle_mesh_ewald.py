@@ -3,18 +3,22 @@ import torch
 import unittest
 
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
-from professad.ion_utils import cardinal_b_spline_values, exponential_spline_b, \
-    structure_factor_spline, structure_factor
+from professad.functionals import IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
+from professad.ion_utils import (
+    cardinal_b_spline_values,
+    exponential_spline_b,
+    structure_factor_spline,
+    structure_factor,
+)
 from scipy.interpolate import BSpline
 
 
 class TestPME(unittest.TestCase):
-
     def test1_cardinal_b_spline_values(self):
-        m = 11                 # grid points in [0,1)
+        m = 11  # grid points in [0,1)
         for n in range(2, 31):  # spline order
-            p = n - 1            # spline max degree
+            p = n - 1  # spline max degree
             spl = torch.zeros((m * n,), dtype=torch.double)
 
             i_over_m = torch.arange(m, dtype=torch.double) / m
@@ -47,22 +51,19 @@ class TestPME(unittest.TestCase):
 
     def test3_structure_factors(self):
         shape = (35, 36, 37)
-        box_vecs = torch.tensor([[4.9, 0.1, 0.2],
-                                 [-0.2, 5.0, 0.3],
-                                 [0.3, -0.1, 5.1]], dtype=torch.double)
-        cart_ion_coords = torch.tensor([[0, 0, 0],
-                                        [2, 0.1, 0.2],
-                                        [0.3, 1, 2]], dtype=torch.double)
+        box_vecs = torch.tensor([[4.9, 0.1, 0.2], [-0.2, 5.0, 0.3], [0.3, -0.1, 5.1]], dtype=torch.double)
+        cart_ion_coords = torch.tensor([[0, 0, 0], [2, 0.1, 0.2], [0.3, 1, 2]], dtype=torch.double)
 
         str_fac = structure_factor(box_vecs, shape, cart_ion_coords)
         str_fac_spline = structure_factor_spline(box_vecs, shape, cart_ion_coords, 20)
 
         t = 10
         self.assertTrue(
-              np.allclose(str_fac[:t, :t, :t].resolve_conj(), str_fac_spline[:t, :t, :t].resolve_conj())
-              * np.allclose(str_fac[:t, -t:, :t].resolve_conj(), str_fac_spline[:t, -t:, :t].resolve_conj())
-              * np.allclose(str_fac[-t:, :t, :t].resolve_conj(), str_fac_spline[-t:, :t, :t].resolve_conj())
-              * np.allclose(str_fac[-t:, -t:, :t].resolve_conj(), str_fac_spline[-t:, -t:, :t].resolve_conj()))
+            np.allclose(str_fac[:t, :t, :t].resolve_conj(), str_fac_spline[:t, :t, :t].resolve_conj())
+            * np.allclose(str_fac[:t, -t:, :t].resolve_conj(), str_fac_spline[:t, -t:, :t].resolve_conj())
+            * np.allclose(str_fac[-t:, :t, :t].resolve_conj(), str_fac_spline[-t:, :t, :t].resolve_conj())
+            * np.allclose(str_fac[-t:, -t:, :t].resolve_conj(), str_fac_spline[-t:, -t:, :t].resolve_conj())
+        )
 
     def test4_pme_den_force_stress(self):
         # this test checks that the PME structure factors agree with the naive structure factors to
@@ -71,23 +72,30 @@ class TestPME(unittest.TestCase):
         shape = (25, 25, 25)
         box_len = 6.96
         box_vecs = box_len * torch.eye(3, dtype=torch.double)
-        ions = [['Li', 'potentials/li.gga.recpot', box_len * torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]]).double()]]
-        terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+        ions = [["Li", "potentials/li.gga.recpot", box_len * torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]]).double()]]
+        terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
         # naive structure factor
-        system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional')
+        system = System(box_vecs, shape, ions, terms, units="b", coord_type="fractional")
         system.optimize_density()
-        E1 = system.energy('eV'); den1 = system.density(); force1 = system.forces(); stress1 = system.stress()
+        E1 = system.energy("eV")
+        den1 = system.density()
+        force1 = system.forces()
+        stress1 = system.stress()
         # PME structure factor
-        system = System(box_vecs, shape, ions, terms, units='b', coord_type='fractional', pme_order=20)
+        terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
+        system = System(box_vecs, shape, ions, terms, units="b", coord_type="fractional", pme_order=20)
         system.optimize_density()
-        E2 = system.energy('eV'); den2 = system.density(); force2 = system.forces(); stress2 = system.stress()
+        E2 = system.energy("eV")
+        den2 = system.density()
+        force2 = system.forces()
+        stress2 = system.stress()
 
         self.assertTrue(np.allclose(E1, E2))
         self.assertTrue(np.allclose(den1, den2))
         self.assertTrue(np.allclose(force1, force2))
         self.assertTrue(np.allclose(stress1, stress2))
-        print('Particle-mesh Ewald scheme works as expected.')
+        print("Particle-mesh Ewald scheme works as expected.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

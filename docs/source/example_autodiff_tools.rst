@@ -9,12 +9,12 @@ The following examples show how one can use PROFESS-AD's :doc:`autodifferentiati
 Functional Derivative Example
 -----------------------------
 
-The ``get_functional_derivative()`` function computes the functional derivative of a given functional. 
+The ``get_functional_derivative()`` function computes the functional derivative of a given functional.
 Consider the following example where we perform a density optimization to get an optimized density and
 use it to inspect the functional derivative (or kinetic potential) of some kinetic functionals. ::
 
   # generate an optimized density to be used
-  terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
   box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
   ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
   shape = System.ecut2shape(3500, box_vecs)
@@ -26,14 +26,14 @@ use it to inspect the functional derivative (or kinetic potential) of some kinet
   box_vecs = system.lattice_vectors('b')
 
   # compute functional derivatives (or kinetic potentials)
-  WT_kp = get_functional_derivative(box_vecs, den, WangTeter)
+  WT_kp = get_functional_derivative(box_vecs, den, WangTeter())
 
-  TFvW = lambda bv, n: ThomasFermi(bv, n) + 1 / 9 * Weizsaecker(bv, n)
+  TFvW = lambda bv, n: ThomasFermi()(bv, n) + 1 / 9 * Weizsaecker()(bv, n)
   TFvW_kp = get_functional_derivative(box_vecs, den, TFvW)
 
   pg = PauliGaussian()
   pg.set_PGS()
-  PG_kp = get_functional_derivative(box_vecs, den, pg.forward)
+  PG_kp = get_functional_derivative(box_vecs, den, pg)
 
   # make plot
   plt.rc('font', family='serif')
@@ -73,7 +73,7 @@ The ``get_inv_G()`` function computes the quantity
 .. math:: G^{-1}(\eta) = \frac{\pi^2}{k_F} \left(\hat{\mathcal{F}} \left\{\frac{\delta^2 T_\text{S}}
           {\delta n(\mathbf{r})\delta n(\mathbf{r}')} \right\} \Bigg\vert_{n_0, n_0}  \right)^{-1},
 
-given a kinetic functional approximation for :math:`T_\text{S}[n]`. It is known that the non-interacting 
+given a kinetic functional approximation for :math:`T_\text{S}[n]`. It is known that the non-interacting
 kinetic energy functional must obey the Lindhard linear response for a homogeneous electron gas,
 
 .. math:: G_\text{Lind}^{-1}(\eta) = \frac{1}{2} + \frac{1-\eta^2}{4\eta} \ln{\left|\frac{1+\eta}{1-\eta}\right|}.
@@ -91,18 +91,18 @@ A simple application for the ``get_inv_G()`` function is for inspection purposes
   eta, lind = G_inv_lindhard(box_vecs, den)
   plt.plot(eta[0, 0, :], lind[0, 0, :], '-k')
 
-  eta, F = get_inv_G(box_vecs, den, WangTeter)
+  eta, F = get_inv_G(box_vecs, den, WangTeter())
   plt.plot(eta[0, 0, :], F[0, 0, :], 'r', ls=(0, (5, 5)))
 
-  eta, F = get_inv_G(box_vecs, den, LuoKarasievTrickey)
+  eta, F = get_inv_G(box_vecs, den, LuoKarasievTrickey())
   plt.plot(eta[0, 0, :], F[0, 0, :], 'b', ls=(0, (1, 1)))
 
   pg = PauliGaussian()
   pg.set_PGSL025()
-  eta, F = get_inv_G(box_vecs, den, pg.forward)
+  eta, F = get_inv_G(box_vecs, den, pg)
   plt.plot(eta[0, 0, :], F[0, 0, :], '--m')
 
-  eta, F = get_inv_G(box_vecs, den, lambda bv, den: 0.6 * Weizsaecker(bv, den) + ThomasFermi(bv, den))
+  eta, F = get_inv_G(box_vecs, den, lambda bv, den: 0.6 * Weizsaecker()(bv, den) + ThomasFermi()(bv, den))
   plt.plot(eta[0, 0, :], F[0, 0, :], '-.g')
 
   plt.xlim([0, eta[0, 0, -1]])

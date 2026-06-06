@@ -4,6 +4,7 @@ import unittest
 
 from professad.system import System
 from professad.functionals import *
+from professad.ion_utils import PickardSum
 
 from tools_for_tests import *
 from professad.functional_tools import get_functional_derivative
@@ -11,15 +12,14 @@ from professad.crystal_tools import get_cell
 
 
 class TestFunctionalDerivatives(unittest.TestCase):
-
     def test1_functional_derivatives(self):
         # perform a density optimization to obtain a density profile for testing
         shape = (25, 25, 25)
         box_len = 6.96
         box_vecs = box_len * torch.eye(3, dtype=torch.double)
-        ions = [['Li', 'potentials/li.gga.recpot', box_len * torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]]).double()]]
-        terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
-        system = System(box_vecs, shape, ions, terms, units='b')
+        ions = [["Li", "potentials/li.gga.recpot", box_len * torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]]).double()]]
+        terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
+        system = System(box_vecs, shape, ions, terms, units="b")
         system.optimize_density()
         box_vecs = system.lattice_vectors()
         den = system.density()
@@ -28,48 +28,48 @@ class TestFunctionalDerivatives(unittest.TestCase):
         # compute autograd (ag) and theoretical (th) functional derivatives (fd) for comparison
 
         # ion-electron interaction
-        ag_fd = get_functional_derivative(box_vecs, den, lambda bv, n: IonElectron(bv, n, v_ext))
+        ag_fd = get_functional_derivative(box_vecs, den, lambda bv, n: IonElectron()(bv, n, v_ext))
         th_fd = v_ext
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Hartree energy
-        ag_fd = get_functional_derivative(box_vecs, den, Hartree)
+        ag_fd = get_functional_derivative(box_vecs, den, Hartree())
         th_fd = hartree_potential(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # ------- Kinetic Functionals -------
         # Thomas-Fermi
-        ag_fd = get_functional_derivative(box_vecs, den, ThomasFermi)
+        ag_fd = get_functional_derivative(box_vecs, den, ThomasFermi())
         th_fd = TF_kp(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Weizsaecker
-        ag_fd = get_functional_derivative(box_vecs, den, Weizsaecker)
+        ag_fd = get_functional_derivative(box_vecs, den, Weizsaecker())
         th_fd = vW_kp(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Wang-Teter
-        ag_fd = get_functional_derivative(box_vecs, den, WangTeter)
+        ag_fd = get_functional_derivative(box_vecs, den, WangTeter())
         th_fd = non_local_KEFD(box_vecs, den, alpha=5 / 6, beta=5 / 6)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Perrot
-        ag_fd = get_functional_derivative(box_vecs, den, Perrot)
+        ag_fd = get_functional_derivative(box_vecs, den, Perrot())
         th_fd = non_local_KEFD(box_vecs, den, alpha=1, beta=1)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Smargiassi-Madden
-        ag_fd = get_functional_derivative(box_vecs, den, SmargiassiMadden)
+        ag_fd = get_functional_derivative(box_vecs, den, SmargiassiMadden())
         th_fd = non_local_KEFD(box_vecs, den, alpha=0.5, beta=0.5)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # Wang-Govind-Carter 98
-        ag_fd = get_functional_derivative(box_vecs, den, WangGovindCarter98)
+        ag_fd = get_functional_derivative(box_vecs, den, WangGovindCarter98())
         th_fd = non_local_KEFD(box_vecs, den, alpha=(5 + np.sqrt(5)) / 6, beta=(5 - np.sqrt(5)) / 6)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
         # LKT
-        ag_fd = get_functional_derivative(box_vecs, den, LuoKarasievTrickey)
+        ag_fd = get_functional_derivative(box_vecs, den, LuoKarasievTrickey())
         th_fd = LKT_kp(box_vecs, den)
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
@@ -118,26 +118,30 @@ class TestFunctionalDerivatives(unittest.TestCase):
         self.assertTrue(np.allclose(ag_fd, th_fd, rtol=1e-10))
 
     def test2_density_optimization(self):
-        terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
-        box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.8, coord_type='fractional')
-        ions = [['Al', 'potentials/al.gga.recpot', frac_ion_coords]]
+        terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
+        box_vecs, frac_ion_coords = get_cell("fcc", vol_per_atom=16.8, coord_type="fractional")
+        ions = [["Al", "potentials/al.gga.recpot", frac_ion_coords]]
         shape = System.ecut2shape(1600, box_vecs)
-        system = System(box_vecs, shape, ions, terms, units='a', coord_type='fractional')
+        system = System(box_vecs, shape, ions, terms, units="a", coord_type="fractional")
         system.optimize_density()
         E1, den1 = system.energy(), system.density()
         system.initialize_density()
 
         def dEdn(bv, n):
-            return system.ionic_potential() + hartree_potential(bv, n) \
-                   + non_local_KEFD(bv, n, alpha=5 / 6, beta=5 / 6) \
-                   + pbe_exchange_potential(bv, n) + pbe_correlation_potential(bv, n)
+            return (
+                system.ionic_potential()
+                + hartree_potential(bv, n)
+                + non_local_KEFD(bv, n, alpha=5 / 6, beta=5 / 6)
+                + pbe_exchange_potential(bv, n)
+                + pbe_correlation_potential(bv, n)
+            )
 
         system.optimize_density(potentials=dEdn)
         E2, den2 = system.energy(), system.density()
         self.assertTrue(np.allclose(E1, E2, rtol=1e-7))
         self.assertTrue(np.allclose(den1, den2, atol=1e-5))
-        print('Autograd functional derivatives work as expected.')
+        print("Autograd functional derivatives work as expected.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

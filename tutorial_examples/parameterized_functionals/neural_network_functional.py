@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import torch
 
 from professad.system import System
-from professad.functionals import KineticFunctional, Weizsaecker, IonIon, IonElectron, Hartree, \
+from professad.functionals import KineticFunctional, Weizsaecker, IonElectron, Hartree, \
     WangTeter, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.functional_tools import get_functional_derivative, wavevecs, reduced_gradient, reduced_laplacian
 from professad.crystal_tools import get_cell
 
@@ -40,11 +41,11 @@ class NeuralNetworkFunctional(KineticFunctional):
         vol = torch.abs(torch.linalg.det(box_vecs))
         TF_ked = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * den.pow(5 / 3)
         Pauli_T = torch.mean(Fenh * TF_ked) * vol
-        return Weizsaecker(box_vecs, den) + Pauli_T
+        return Weizsaecker()(box_vecs, den) + Pauli_T
 
 
 # generate an optimized density to be used
-terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
 box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
 ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 shape = System.ecut2shape(2000, box_vecs)
@@ -59,7 +60,7 @@ box_vecs = system.lattice_vectors('b')
 # to that of the Wang-Teter functional for this optimized density
 
 # the "target"
-WT_kp = get_functional_derivative(box_vecs, den, WangTeter)
+WT_kp = get_functional_derivative(box_vecs, den, WangTeter())
 
 # create the neural network functional with 3 hidden layers having 8 nodes each
 model = NeuralNetworkFunctional([8, 8, 8])

@@ -19,9 +19,11 @@ class TFvW(KineticFunctional):
         self.mu = torch.nn.Parameter(torch.tensor([mu], dtype=torch.double, device=self.device))
         self.lamb = torch.nn.Parameter(torch.tensor([lamb], dtype=torch.double, device=self.device))
         self.initialize()
+        self._wz = Weizsaecker()
+        self._tf = ThomasFermi()
 
     def forward(self, box_vecs, den):
-        return self.mu * Weizsaecker(box_vecs, den) + self.lamb * ThomasFermi(box_vecs, den)
+        return self.mu * self._wz(box_vecs, den) + self.lamb * self._tf(box_vecs, den)
 
 
 # train the µ TF + λ vW functional response to fit the Lindhard response

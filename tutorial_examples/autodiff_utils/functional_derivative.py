@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, WangTeter, ThomasFermi, \
+from professad.functionals import IonElectron, Hartree, WangTeter, ThomasFermi, \
     Weizsaecker, PauliGaussian, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.crystal_tools import get_cell
 from professad.functional_tools import get_functional_derivative
 
 # generate an optimized density to be used
-terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
 box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
 ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 shape = System.ecut2shape(3500, box_vecs)
@@ -20,9 +21,9 @@ den = system.density()
 box_vecs = system.lattice_vectors('b')
 
 # compute functional derivatives (or kinetic potentials)
-WT_kp = get_functional_derivative(box_vecs, den, WangTeter)
+WT_kp = get_functional_derivative(box_vecs, den, WangTeter())
 
-TFvW = lambda bv, n: ThomasFermi(bv, n) + 1 / 9 * Weizsaecker(bv, n)
+TFvW = lambda bv, n: ThomasFermi()(bv, n) + 1 / 9 * Weizsaecker()(bv, n)
 TFvW_kp = get_functional_derivative(box_vecs, den, TFvW)
 
 pg = PauliGaussian()

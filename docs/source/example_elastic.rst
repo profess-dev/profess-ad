@@ -5,11 +5,11 @@ Equation of State Fit (Basic)
 -----------------------------
 
 Equation of state fits have become the most common way to assess the quality of new kinetic
-functionals. PROFESS-AD provides a simplified workflow to perform such fits, using the 
+functionals. PROFESS-AD provides a simplified workflow to perform such fits, using the
 ``system.eos_fit()`` class method. First, let us consider a "bare-bones" example. ::
 
   # define the system at a close estimate to the equilibrium volume
-  terms = [IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), vWGTF1(), PerdewBurkeErnzerhof()]
   box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
   ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
   shape = System.ecut2shape(2000, box_vecs)
@@ -39,7 +39,7 @@ This results in ::
 
 If one does not have a good initial estimate for the volume, one solution is to increase the value of
 the ``f`` parameter of ``system.eos_fit()`` to a larger value (e.g. ``f=0.3``) to try and capture the
-energy-volume minima. One can then use the equilibrium volume computed from that fit with a smaller ``f`` 
+energy-volume minima. One can then use the equilibrium volume computed from that fit with a smaller ``f``
 to fine-tune the results.
 
 Equation of State Fit (Advanced)
@@ -57,7 +57,7 @@ following for example. ::
   print('Stretched up to ±{}% over {} points and fitted with the {} EOS\n'
         .format(f * 100, N, 'Birch-Murnaghan'))
 
-  terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
   crystal_predv0s = [('fcc', 16.8), ('hcp', 16.9), ('bcc', 17.2), ('sc', 19.9), ('dc', 28.8)]
 
   print('{:^8} {:^17} {:^17} {:^14} {:^14}'.format('Crystal', 'V₀/A³ per atom', 'E₀/eV per atom', 'ΔE₀/meV', 'K₀/GPa'))
@@ -91,19 +91,19 @@ Elastic Constants
 
 .. _elastic_constants_example:
 
-With the use of ξ-torch, higher derivative quantities, such as the bulk modulus and second-order elastic 
+With the use of ξ-torch, higher derivative quantities, such as the bulk modulus and second-order elastic
 constants, can be computed directly with auto-differentiation. The following example computes the zero-pressure
-elastic properties of fcc-aluminium. Due to its cubic symmetry, this system only possesses three 
+elastic properties of fcc-aluminium. Due to its cubic symmetry, this system only possesses three
 independent elastic constant elements, :math:`C_{11}`, :math:`C_{12}` and :math:`C_{44}`.
 
-We first performs a Birch-Murnaghan equation of state fit to find the equilibrium volume before 
-computing the zero-pressure elastic constants. Comparions of the bulk moduli obtained via different 
-approaches and an example of how the elastic constants can be post-processed are also included. 
-More post-processing options are listed in the :ref:`Elastic Properties <elastic_properties>` section 
+We first performs a Birch-Murnaghan equation of state fit to find the equilibrium volume before
+computing the zero-pressure elastic constants. Comparions of the bulk moduli obtained via different
+approaches and an example of how the elastic constants can be post-processed are also included.
+More post-processing options are listed in the :ref:`Elastic Properties <elastic_properties>` section
 of the :doc:`elastic_tools` page.  ::
 
   # define system
-  terms = [IonIon, IonElectron, Hartree, XuWangMa, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), XuWangMa(), PerdewBurkeErnzerhof()]
   box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.52, coord_type='fractional')
   ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
   shape = System.ecut2shape(2000, box_vecs)
@@ -172,7 +172,7 @@ This results in ::
   EOS bulk modulus = 76.494 GPa
   Auto-differentiation bulk modulus = 76.502 GPa
   Bulk modulus from elastic constants = 76.502 GPa
-  
+
   Post-processed quantities:
   Shear modulus = 30.963
   Poisson's ratio = 0.32169

@@ -1,9 +1,10 @@
 from professad.system import System
-from professad.functionals import IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof
+from professad.functionals import IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof
+from professad.ion_utils import PickardSum
 from professad.crystal_tools import get_cell
 
 # define the system at a close estimate to the equilibrium volume
-terms = [IonIon, IonElectron, Hartree, vWGTF1, PerdewBurkeErnzerhof]
+terms = [PickardSum(), IonElectron(), Hartree(), vWGTF1(), PerdewBurkeErnzerhof()]
 box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
 ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
 shape = System.ecut2shape(2000, box_vecs)

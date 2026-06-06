@@ -4,22 +4,22 @@ Density Optimization
 Introduction
 ------------
 
-The core functionality of any orbital-free density functional theory code is to be able to 
-perform density optimizations. In theory, we seek to minimize the energy functional subject 
+The core functionality of any orbital-free density functional theory code is to be able to
+perform density optimizations. In theory, we seek to minimize the energy functional subject
 to the constraints that the electron density is positive and normalized. We can hence form a
 Lagrangian,
 
 .. math::  \mathcal{L}[n] = E[n] - \mu \left[\int n(\mathbf{r}) d^3\mathbf{r} - N_e \right],
 
-which yields an Euler-Lagrange equation 
+which yields an Euler-Lagrange equation
 
 .. math:: \mu - \frac{\delta E}{\delta n(\mathbf{r})} \Bigg\vert_{n_\text{gs}} = 0,
 
-to be solved for the ground state density. While introduced as a Lagrange multiplier constant, 
-:math:`\mu` can be interpreted as the chemical potential based on the Euler-Lagrange equation. 
+to be solved for the ground state density. While introduced as a Lagrange multiplier constant,
+:math:`\mu` can be interpreted as the chemical potential based on the Euler-Lagrange equation.
 
 PROFESS-AD adopts a direct minimization scheme to solve the Euler-Lagrange equation.
-To account for the density positivity and normalization constraints during the optimization, 
+To account for the density positivity and normalization constraints during the optimization,
 PROFESS-AD minimizes the energy with respect to an unconstrained variable :math:`\chi(\mathbf{r})`
 instead, which is related to the constrained density :math:`n(\mathbf{r})` via
 
@@ -29,10 +29,10 @@ where :math:`N_e` is the number of electrons. The convergence condition is hence
 
 .. math:: \frac{\delta E}{\delta \chi} \Bigg\vert_{\chi_\text{gs}} = 0
 
-By default, PROFESS-AD utilizes a PyTorch-based LBFGS optimizer to perform density optimizations. 
+By default, PROFESS-AD utilizes a PyTorch-based LBFGS optimizer to perform density optimizations.
 The default convergence criteria is that the energy difference after each iteration must be below
-1e-7 eV (controlled by ``ntol``), 3 times in a row (controlled by ``n_conv_cond_count``). Other 
-parameter options can be found in the description of the ``system.optimize_density()`` method in the 
+1e-7 eV (controlled by ``ntol``), 3 times in a row (controlled by ``n_conv_cond_count``). Other
+parameter options can be found in the description of the ``system.optimize_density()`` method in the
 :doc:`system` page.
 
 Basic Example
@@ -40,7 +40,7 @@ Basic Example
 Let us consider a basic example with the following code ::
 
   # set energy terms and functionals to be used
-  terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
 
   # use "get cell" to get the lattice vectors and fractional ionic coordinates of
   # a face-centred cubic (fcc) lattice
@@ -68,8 +68,8 @@ Let us consider a basic example with the following code ::
   print('Max |µ-𝛿E/𝛿n| = {:.4g}'.format(mu_minus_dEdn_max))
 
 
-This sets up a face-centred cubic (fcc) aluminium system and performs a density optimization. 
-With the default settings, termination of the density optimization is based on the energy 
+This sets up a face-centred cubic (fcc) aluminium system and performs a density optimization.
+With the default settings, termination of the density optimization is based on the energy
 differences ``dE``. We can also use the other measures of convergence (which correspond to the
 extent that the Euler-Lagrange equations are obeyed) to make sure that the density has been
 optimized to the desired extent.  ::
@@ -113,14 +113,14 @@ Example with Custom Potentials (Quantum Harmonic Oscillator)
 ------------------------------------------------------------
 
 Let us consider a use case where we want to use a custom external potential for the
-density optimization. The procedure is similar to the above, just that we have to 
+density optimization. The procedure is similar to the above, just that we have to
 supply a dummy ``ions`` parameter to initialize the ``system`` object before setting the
-potential to our desired one, remembering to change the electron number of the system too. :: 
+potential to our desired one, remembering to change the electron number of the system too. ::
 
   # the single electron quantum harmonic oscillator (QHO) is a non-interacting
-  # single-orbital system - hence, it can be modelled well with just the 
+  # single-orbital system - hence, it can be modelled well with just the
   # ion-electron interaction and Weizsaecker terms
-  terms = [IonElectron, Weizsaecker]
+  terms = [IonElectron(), Weizsaecker()]
 
   # use a large box to simulate such localied systems with periodic
   # boundary conditions so that the electron density will approach zero
@@ -132,7 +132,7 @@ potential to our desired one, remembering to change the electron number of the s
   shape = System.ecut2shape(300, box_vecs)
 
   # as we will set the external potential ourselves later, we just need to
-  # submit a dummy "ions" parameter (the recpot file and ionic coordinates 
+  # submit a dummy "ions" parameter (the recpot file and ionic coordinates
   # are arbitrary for this example)
   ions = [['-', 'al.gga.recpot', torch.tensor([[0.5, 0.5, 0.5]]).double()]]
 
@@ -219,9 +219,8 @@ This results in ::
   Convergence check:
   Max |𝛿E/𝛿χ| = 0.0007487
   Max |µ-𝛿E/𝛿n| = 5.925e+05
-  
-Note how the Max :math:`|\mu - \delta E / \delta n|` measure of convergence becomes very
-large at convergence eventhough the optimized energy agrees with the theoretical one and 
-Max :math:`|\delta E / \delta \chi|` measure of convergence is small. This is a result of 
-the vacuum regions with low densities leading to divergences in the von Weizsaecker term.
 
+Note how the Max :math:`|\mu - \delta E / \delta n|` measure of convergence becomes very
+large at convergence eventhough the optimized energy agrees with the theoretical one and
+Max :math:`|\delta E / \delta \chi|` measure of convergence is small. This is a result of
+the vacuum regions with low densities leading to divergences in the von Weizsaecker term.

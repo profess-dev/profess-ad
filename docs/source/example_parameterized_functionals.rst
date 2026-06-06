@@ -3,13 +3,13 @@ Parameterized Kinetic Functionals
 
 This example illustrates how we can extend the :ref:`kinetic functional template <kinetic_template>`
 class, ``KineticFunctional``, to create parameterized functionals (e.g. neural network functionals),
-which can be fitted to data. 
+which can be fitted to data.
 
 
 :math:`\mu` TF + :math:`\lambda` vW Functional and Linear Response Fitting
 --------------------------------------------------------------------------
 
-Let us start with a simple example to show how the ``KineticFunctional`` class can be used to define 
+Let us start with a simple example to show how the ``KineticFunctional`` class can be used to define
 the :math:`\mu` TF + :math:`\lambda` vW functional. ::
 
   class TFvW(KineticFunctional):
@@ -27,10 +27,10 @@ the :math:`\mu` TF + :math:`\lambda` vW functional. ::
           self.initialize()
 
       def forward(self, box_vecs, den):
-          return self.mu * Weizsaecker(box_vecs, den) + self.lamb * ThomasFermi(box_vecs, den)
+          return self.mu * Weizsaecker()(box_vecs, den) + self.lamb * ThomasFermi()(box_vecs, den)
 
 Now let us use the ``get_inv_G()`` utility function to fit the (:math:`\mu`, :math:`\lambda`) parameters
-to reproduce the Lindhard function. (A simpler example of how the ``get_inv_G()`` function can be used can 
+to reproduce the Lindhard function. (A simpler example of how the ``get_inv_G()`` function can be used can
 be found :ref:`here <autodiff_tools_eg>`.)  ::
 
 
@@ -49,7 +49,7 @@ be found :ref:`here <autodiff_tools_eg>`.)  ::
   print('Initial (µ, λ) = ({:.5g}, {:.5g})\n'.format(TFvW_train.mu.item(), TFvW_train.lamb.item()))
 
   for i in range(20):
-      eta, G_inv = get_inv_G(box_vecs, den, TFvW_train.forward, requires_grad=True)
+      eta, G_inv = get_inv_G(box_vecs, den, TFvW_train, requires_grad=True)
       # computes the loss function and performs optimization to minimize it
       loss = TFvW_train.grid_error(G_inv_lind, G_inv)  # these are inherited helper functions from the
       TFvW_train.update_params(loss)                           # KineticFunctional class to facilitate training
@@ -59,7 +59,7 @@ be found :ref:`here <autodiff_tools_eg>`.)  ::
 
   print('\nOptimized (µ, λ) = ({:.5g}, {:.5g})'.format(TFvW_train.mu.item(), TFvW_train.lamb.item()))
 
-  eta, G_inv_opt = get_inv_G(box_vecs, den, TFvW_train.forward)
+  eta, G_inv_opt = get_inv_G(box_vecs, den, TFvW_train)
 
   # make plot to compare against Lindhard response
   plt.rc('font', family='serif')
@@ -124,8 +124,8 @@ functional. We use a simple Laplacian-level semi-local functional of the form
 
 .. math:: T_\text{S}[n] = T_\text{vW}[n] + \int_\Omega d^3\mathbf{r}~F_\text{enh}(s,q) \tau_\text{TF}(\mathbf{r})
 
-where :math:`T_\text{vW}` is the :ref:`von Weizsaecker functional <vw>`, :math:`\tau_\text{TF}(\mathbf{r})` is 
-the :ref:`Thomas-Fermi <tf>` kinetic energy density, :math:`s` is the :ref:`reduced gradient <s>` and 
+where :math:`T_\text{vW}` is the :ref:`von Weizsaecker functional <vw>`, :math:`\tau_\text{TF}(\mathbf{r})` is
+the :ref:`Thomas-Fermi <tf>` kinetic energy density, :math:`s` is the :ref:`reduced gradient <s>` and
 :math:`q` is the :ref:`reduced Laplacian <q>`. We shall use a neural network to approximate the Pauli enhancement
 factor, :math:`F_\text{enh}(s,q)`. ::
 
@@ -159,20 +159,20 @@ factor, :math:`F_\text{enh}(s,q)`. ::
           vol = torch.abs(torch.linalg.det(box_vecs))
           TF_ked = 0.3 * (3 * np.pi * np.pi)**(2 / 3) * den.pow(5 / 3)
           Pauli_T = torch.mean(Fenh * TF_ked) * vol
-          return Weizsaecker(box_vecs, den) + Pauli_T
+          return Weizsaecker()(box_vecs, den) + Pauli_T
 
-We now give an example of how the ``get_functional_derivative()`` utility function can be used to facilitate 
+We now give an example of how the ``get_functional_derivative()`` utility function can be used to facilitate
 the fitting of this neural network functional's functional derivative (or kinetic potential) to some reference
-kinetic potential. (A simpler example of how the ``get_functional_derivative()`` function can be used can be 
-found :ref:`here <autodiff_tools_eg>`.) As this is just a toy model to illustrate how one might use PROFESS-AD's 
-utilities for such training, we shall fit the neural network functional's kinetic potential to that of the 
-Wang-Teter functional's for a face-centred cubic (fcc) aluminium system, where the density was optimized using 
+kinetic potential. (A simpler example of how the ``get_functional_derivative()`` function can be used can be
+found :ref:`here <autodiff_tools_eg>`.) As this is just a toy model to illustrate how one might use PROFESS-AD's
+utilities for such training, we shall fit the neural network functional's kinetic potential to that of the
+Wang-Teter functional's for a face-centred cubic (fcc) aluminium system, where the density was optimized using
 the Wang-Teter functional. Of course, this is just a toy example to explain how PROFESS-AD can be used for such
-training - it is uncertain if the model trained is transferable enough to be used for density optimizations due 
+training - it is uncertain if the model trained is transferable enough to be used for density optimizations due
 to overfitting on a single example. ::
 
   # generate an optimized density to be used
-  terms = [IonIon, IonElectron, Hartree, WangTeter, PerdewBurkeErnzerhof]
+  terms = [PickardSum(), IonElectron(), Hartree(), WangTeter(), PerdewBurkeErnzerhof()]
   box_vecs, frac_ion_coords = get_cell('fcc', vol_per_atom=16.9, coord_type='fractional')
   ions = [['Al', 'al.gga.recpot', frac_ion_coords]]
   shape = System.ecut2shape(2000, box_vecs)
@@ -187,7 +187,7 @@ to overfitting on a single example. ::
   # to that of the Wang-Teter functional for this optimized density
 
   # the "target"
-  WT_kp = get_functional_derivative(box_vecs, den, WangTeter)
+  WT_kp = get_functional_derivative(box_vecs, den, WangTeter())
 
   # create the neural network functional with 3 hidden layers having 8 nodes each
   model = NeuralNetworkFunctional([8, 8, 8])
@@ -198,7 +198,7 @@ to overfitting on a single example. ::
   model.param_grad(True)
 
   for iter in range(201):
-      NN_kp = get_functional_derivative(box_vecs, den, model.forward, requires_grad=True)
+      NN_kp = get_functional_derivative(box_vecs, den, model, requires_grad=True)
       loss = model.grid_error(WT_kp, NN_kp)
       model.update_params(loss)
       if iter % 20 == 0:
@@ -206,7 +206,7 @@ to overfitting on a single example. ::
 
   model.param_grad(False)
 
-  NN_kp = get_functional_derivative(box_vecs, den, model.forward)
+  NN_kp = get_functional_derivative(box_vecs, den, model)
 
   # make plot
   plt.rc('font', family='serif')
@@ -244,11 +244,11 @@ This results in ::
   Iteration 160, RMSE = 0.01925
   Iteration 180, RMSE = 0.018822
   Iteration 200, RMSE = 0.018475
-  
+
 and makes the plot
 
 .. image:: images/nn_kp.png
    :width: 450
 
-As the neural network parameters are initialized randomly, running the above code may lead to different 
+As the neural network parameters are initialized randomly, running the above code may lead to different
 results each time.
