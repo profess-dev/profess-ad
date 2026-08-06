@@ -772,7 +772,16 @@ class System:
 
         # initialize unconstrained optimization variable
         chi = torch.sqrt(self.den).requires_grad_()
-        optimizer = torch.optim.LBFGS([chi], lr=n_step_size, history_size=8, max_iter=6)
+        # line search and disabled default tolerances are needed for step() to reach ntol
+        optimizer = torch.optim.LBFGS(
+            [chi],
+            lr=n_step_size,
+            history_size=8,
+            max_iter=6,
+            line_search_fn="strong_wolfe",
+            tolerance_grad=0.0,
+            tolerance_change=0.0,
+        )
 
         if potentials is None:
 
