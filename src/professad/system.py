@@ -607,17 +607,19 @@ class System:
         else:
             raise ValueError("Parameter 'units' can only be 'Ha/b' or 'eV/a'")
 
-    def stress(self, units="Ha/b3"):
+    def stress(self, units="Ha/b3", voigt=False):
         r"""
         Computes, via autograd, the stress tensor
 
-        .. math:: \sigma_{ij} = \frac{1}{\Omega} \sum_k \frac{\partial E[n]}{\partial h_{ik}} h_{jk}
+        .. math:: \sigma_{ij} = \frac{1}{\Omega} \frac{\partial E[n]}{\partial \epsilon_{ij}}
 
-        where :math:`h_{ij}` are matrix elements of a matrix whose columns are lattice vectors
+        where :math:`\epsilon_{ij}` is an infinitesimal strain applied to the cell
         and the cell volume is :math:`\Omega`.
 
         Args:
           units (string): Units of the stress tensor returned (``Ha/b3``, ``eV/a3`` or ``GPa``)
+          voigt (bool)  : Whether to return the stress as a 6-component Voigt vector
+                          (:math:`xx,~yy,~zz,~yz,~xz,~xy`) instead of a 3 by 3 tensor
 
         Returns:
           torch.Tensor: Stress tensor
@@ -630,7 +632,8 @@ class System:
             unit_factor = self.GPa_per_atomic
         else:
             raise ValueError("Parameter 'units' can only be 'Ha/b3', 'eV/a3' or 'GPa'")
-        return self._compute_stress() * unit_factor
+        voigt_stress = self._compute_stress() * unit_factor
+        return voigt_stress if voigt else _voigt_to_3by3_stress(voigt_stress)
 
     def elastic_constants(self, units="Ha/b3"):
         r"""
@@ -882,16 +885,21 @@ class System:
         return forces
 
     def _compute_stress(self):
-        self.box_vecs.requires_grad = True
+        # differentiate with respect to a Voigt strain applied to the cell, which gives
+        # the stress directly in Voigt form and is symmetric by construction
+        voigt_strain = torch.zeros((6,), dtype=self.box_vecs.dtype, device=self.box_vecs.device, requires_grad=True)
+        deformation = torch.eye(3, dtype=voigt_strain.dtype, device=voigt_strain.device).add_(
+            _voigt_to_3by3_strain(voigt_strain)
+        )
+        self.box_vecs = torch.matmul(self.box_vecs, deformation)
         # incorporate lattice vector dependence in density
         self.den = self.den * self._vol().detach() / self._vol()
+        # incorporate lattice vector dependence in positions
         self.v_ext = self._potential_from_ions(torch.matmul(self.frac_ion_coords, self.box_vecs))
-        # calculate stress by auto-differentiating energy wrt lattice vectors
         E = self._compute_energy()
-        dEdcell = torch.autograd.grad(E, self.box_vecs)[0].T
+        dEdstrain = torch.autograd.grad(E, voigt_strain)[0]
         self.detach()  # reset autograd features
-        stress = torch.matmul(dEdcell, self.box_vecs) / self._vol()
-        return 0.5 * (stress + stress.T)  # symmetrize
+        return dEdstrain.div(self._vol())
 
     def optimize_geometry(
         self,
@@ -1275,95 +1283,32 @@ class System:
 
     def _compute_elastic_constants(self):
         box_vecs = self.box_vecs.clone()
-        box_vecs.requires_grad = True
 
-        def energy(chi, box_vecs):
+        def energy(chi, voigt_strain):
+            deformation = torch.eye(3, dtype=voigt_strain.dtype, device=voigt_strain.device).add_(
+                _voigt_to_3by3_strain(voigt_strain)
+            )
             # incorporate lattice vector dependence in ionic potential
-            self.box_vecs = box_vecs
+            self.box_vecs = torch.matmul(box_vecs, deformation)
             self.v_ext = self._potential_from_ions(torch.matmul(self.frac_ion_coords, self.box_vecs))
             N_tilde = torch.mean(chi.pow(2)) * self._vol()
             self.den = (self.n_elec / N_tilde) * chi.pow(2)
             E = self._compute_energy()
             return E
 
+        voigt_strain = torch.zeros((6,), dtype=self.box_vecs.dtype, device=self.box_vecs.device, requires_grad=True)
+
         # use Xitorch's minimize to get "minimization functional" derivative
         chi_init = torch.sqrt(self.den)
-        chi_opt = minimize(energy, chi_init, params=(box_vecs,), method="gd", maxiter=0)
-        E = energy(chi_opt, box_vecs)
+        chi_opt = minimize(energy, chi_init, params=(voigt_strain,), method="gd", maxiter=0)
+        E = energy(chi_opt, voigt_strain)
 
-        # calculate elastic constants by auto-differentiating energy wrt lattice vectors
-        dEdh = torch.autograd.grad(E, box_vecs, create_graph=True)[0].T
-        stress = torch.matmul(dEdh, box_vecs) / self._vol()
-
-        ds11dh = torch.autograd.grad(stress[0, 0], box_vecs, retain_graph=True)[0].T
-        ds22dh = torch.autograd.grad(stress[1, 1], box_vecs, retain_graph=True)[0].T
-        ds33dh = torch.autograd.grad(stress[2, 2], box_vecs, retain_graph=True)[0].T
-        ds23dh = torch.autograd.grad(stress[1, 2], box_vecs, retain_graph=True)[0].T
-        ds13dh = torch.autograd.grad(stress[0, 2], box_vecs, retain_graph=True)[0].T
-        ds12dh = torch.autograd.grad(stress[0, 1], box_vecs, retain_graph=False)[0].T
-
+        # calculate elastic constants by auto-differentiating the Voigt stress wrt the Voigt strain
+        voigt_stress = torch.autograd.grad(E, voigt_strain, create_graph=True)[0].div(self._vol())
+        Cs = torch.stack(
+            [torch.autograd.grad(voigt_stress[i], voigt_strain, retain_graph=True)[0] for i in range(6)], -1
+        )
         self.detach()  # reset autograd features
-
-        # calculate elastic constants
-        C11kl = torch.matmul(ds11dh, self.box_vecs)
-        C11kl = 0.5 * (C11kl + C11kl.T)  # symmetrize
-        C1111, C1112, C1113 = C11kl[0, :]  # Y Y Y
-        C1121, C1122, C1123 = C11kl[1, :]  # N Y Y
-        C1131, C1132, C1133 = C11kl[2, :]  # N N Y
-
-        C22kl = torch.matmul(ds22dh, self.box_vecs)
-        C22kl = 0.5 * (C22kl + C22kl.T)  # symmetrize
-        C2211, C2212, C2213 = C22kl[0, :]  # N Y Y
-        C2221, C2222, C2223 = C22kl[1, :]  # N Y Y
-        C2231, C2232, C2233 = C22kl[2, :]  # N N Y
-
-        C33kl = torch.matmul(ds33dh, self.box_vecs)
-        C33kl = 0.5 * (C33kl + C33kl.T)  # symmetrize
-        C3311, C3312, C3313 = C33kl[0, :]  # N Y Y
-        C3321, C3322, C3323 = C33kl[1, :]  # N N Y
-        C3331, C3332, C3333 = C33kl[2, :]  # N N Y
-
-        C23kl = torch.matmul(ds23dh, self.box_vecs)
-        C23kl = 0.5 * (C23kl + C23kl.T)  # symmetrize
-        C2311, C2312, C2313 = C23kl[0, :]  # N Y Y
-        C2321, C2322, C2323 = C23kl[1, :]  # N N Y
-        C2331, C2332, C2333 = C23kl[2, :]  # N N N
-
-        C13kl = torch.matmul(ds13dh, self.box_vecs)
-        C13kl = 0.5 * (C13kl + C13kl.T)  # symmetrize
-        C1311, C1312, C1313 = C13kl[0, :]  # N Y Y
-        C1321, C1322, C1323 = C13kl[1, :]  # N N N
-        C1331, C1332, C1333 = C13kl[2, :]  # N N N
-
-        C12kl = torch.matmul(ds12dh, self.box_vecs)
-        C12kl = 0.5 * (C12kl + C12kl.T)  # symmetrize
-        C1211, C1212, C1213 = C12kl[0, :]  # N Y N
-        C1221, C1222, C1223 = C12kl[1, :]  # N N N
-        C1231, C1232, C1233 = C12kl[2, :]  # N N N
-
-        Cs = torch.zeros((6, 6), dtype=torch.double, device=self.device)
-        Cs[0, 0] = C1111
-        Cs[0, 1] = C1122
-        Cs[0, 2] = C1133
-        Cs[0, 3] = C1123
-        Cs[0, 4] = C1113
-        Cs[0, 5] = C1112
-        Cs[1, 1] = C2222
-        Cs[1, 2] = C2233
-        Cs[1, 3] = C2223
-        Cs[1, 4] = C2213
-        Cs[1, 5] = C2212
-        Cs[2, 2] = C3333
-        Cs[2, 3] = C3323
-        Cs[2, 4] = C3313
-        Cs[2, 5] = C3312
-        Cs[3, 3] = C2323
-        Cs[3, 4] = C2313
-        Cs[3, 5] = C2312
-        Cs[4, 4] = C1313
-        Cs[4, 5] = C1312
-        Cs[5, 5] = C1212
-        Cs = Cs + torch.tril(Cs.T, diagonal=-1)
         return Cs
 
     def _compute_force_constants(self, primitive_ion_indices):
@@ -1395,3 +1340,25 @@ class System:
 
         self.detach()  # reset autograd features
         return force_constants
+
+
+def _voigt_to_3by3_strain(voigt_strain: torch.Tensor):
+    """
+    Autograd compatible function that has the same effect as the following:
+
+    return torch.tensor([[voigt_strain[0], 0.5 * voigt_strain[5], 0.5 * voigt_strain[4]],
+                         [0.5 * voigt_strain[5], voigt_strain[1], 0.5 * voigt_strain[3]],
+                         [0.5 * voigt_strain[4], 0.5 * voigt_strain[3], voigt_strain[2]]],
+                         dtype=voigt_strain.dtype, device=voigt_strain.device)
+    """
+    ids = torch.tensor([0, 5, 4, 1, 3, 2], dtype=torch.long, device=voigt_strain.device)
+    sorted_vstrain = voigt_strain[ids]
+    id1, id2 = torch.triu_indices(3, 3)
+    strain = torch.zeros((3, 3), dtype=voigt_strain.dtype, device=voigt_strain.device)
+    strain[id1, id2] = sorted_vstrain
+    return 0.5 * (strain + strain.T)
+
+
+def _voigt_to_3by3_stress(voigt_stress: torch.Tensor):
+    xx, yy, zz, yz, xz, xy = voigt_stress
+    return torch.stack([torch.stack([xx, xy, xz]), torch.stack([xy, yy, yz]), torch.stack([xz, yz, zz])])

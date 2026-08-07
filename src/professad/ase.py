@@ -27,9 +27,6 @@ class ProfessAD(Calculator):
         self.system.place_ions(torch.as_tensor(atoms.positions, dtype=torch.double))
         self.system.optimize_density(ntol=self.ntol)
 
-        sigma = self.system.stress(units="eV/a3")
         self.results["energy"] = self.system.energy("eV")
         self.results["forces"] = self.system.forces("eV/a").cpu().numpy()
-        self.results["stress"] = (
-            torch.stack([sigma[0, 0], sigma[1, 1], sigma[2, 2], sigma[1, 2], sigma[0, 2], sigma[0, 1]]).cpu().numpy()
-        )
+        self.results["stress"] = self.system.stress(units="eV/a3", voigt=True).cpu().numpy()
